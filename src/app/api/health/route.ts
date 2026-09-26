@@ -1,11 +1,14 @@
+import {NATLAS_ASR_MODELS} from "@/lib/languages";
 export async function GET(){
   return Response.json({
     ok:true,
     service:"ileraher-ai",
+    channels:{web:true,lowBandwidth:"/lite",ivr:"/api/ivr/incoming"},
     natlas:{
-      asrConfigured:Boolean(process.env.NATLAS_ASR_API_URL||process.env.NATLAS_API_URL),
+      asrConfigured:Boolean(process.env.NATLAS_ASR_API_URL||process.env.NATLAS_ASR_EN_NG_URL||process.env.NATLAS_ASR_YO_URL||process.env.NATLAS_ASR_HA_URL||process.env.NATLAS_ASR_IG_URL||process.env.NATLAS_API_URL),
       llmConfigured:Boolean(process.env.NATLAS_LLM_API_URL),
-      model:process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS"
+      llmModel:process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS",
+      asrModels:NATLAS_ASR_MODELS
     }
   });
 }
