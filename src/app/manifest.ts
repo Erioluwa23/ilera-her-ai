@@ -1,0 +1,1 @@
+import type {MetadataRoute} from "next";export default function manifest():MetadataRoute.Manifest{return{name:"ÌleraHer AI",short_name:"ÌleraHer",description:"Private, voice-first menstrual health companion.",start_url:"/",display:"standalone",background_color:"#fffafc",theme_color:"#8f3154"}}
