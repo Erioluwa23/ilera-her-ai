@@ -5,11 +5,21 @@ import {averageCycleLength,predictedNextPeriod} from "@/lib/cycle";
 
 type Flow="spotting"|"light"|"medium"|"heavy";
 type PeriodLog={id:string;startDate:string;endDate?:string;flow:Flow;pain:number;notes?:string};
+type LegacyLog={date:string;flow:Flow;pain:number;notes?:string};
 const KEY="ileraher-periods-v2";
+const LEGACY_KEY="ileraher-cycle-v1";
 
 function load():PeriodLog[]{
   if(typeof window==="undefined")return[];
-  try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return[]}
+  try{
+    const current=JSON.parse(localStorage.getItem(KEY)||"[]") as PeriodLog[];
+    if(current.length)return current;
+    const legacy=JSON.parse(localStorage.getItem(LEGACY_KEY)||"[]") as LegacyLog[];
+    if(!legacy.length)return[];
+    const migrated=legacy.map((x,i)=>({id:"legacy-"+i+"-"+x.date,startDate:x.date,flow:x.flow,pain:x.pain,notes:x.notes}));
+    localStorage.setItem(KEY,JSON.stringify(migrated));
+    return migrated;
+  }catch{return[]}
 }
 
 export default function Tracker(){
@@ -19,6 +29,7 @@ export default function Tracker(){
   const [flow,setFlow]=useState<Flow>("medium");
   const [pain,setPain]=useState(3);
   const [notes,setNotes]=useState("");
+  const [formError,setFormError]=useState("");
 
   const starts=useMemo(()=>logs.map(x=>x.startDate),[logs]);
   const safety=assessSymptoms({pain,heavyBleeding:flow==="heavy"});
@@ -30,6 +41,10 @@ export default function Tracker(){
   }
 
   function save(){
+    setFormError("");
+    if(!startDate){setFormError("Choose the first day of this period.");return}
+    if(endDate&&endDate<startDate){setFormError("Period end cannot be before period start.");return}
+    if(logs.some(x=>x.startDate===startDate)){setFormError("A period with this start date is already saved. Remove it first if you want to replace it.");return}
     const entry:PeriodLog={
       id:crypto.randomUUID(),
       startDate,
@@ -58,6 +73,7 @@ export default function Tracker(){
       <label className="span2">Notes (optional)<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. cramps stronger than usual"/></label>
     </div>
 
+    {formError&&<div className="risk attention">{formError}</div>}
     <div className={"risk "+safety.level}>{safety.message}</div>
     <button className="btn" onClick={save}>Save period</button>
 
@@ -76,7 +92,7 @@ export default function Tracker(){
         </div>
         <button className="textbtn" onClick={()=>remove(x.id)}>Remove</button>
       </div>)}
-      <button className="textbtn danger" onClick={()=>{localStorage.removeItem(KEY);setLogs([])}}>Delete all local cycle data</button>
+      <button className="textbtn danger" onClick={()=>{localStorage.removeItem(KEY);localStorage.removeItem(LEGACY_KEY);setLogs([])}}>Delete all local cycle data</button>
     </div>}
   </section>;
 }
