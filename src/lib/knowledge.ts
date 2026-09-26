@@ -47,7 +47,7 @@ export function classifyQuestion(q:string){
   const x=q.toLowerCase();
   if(/safe day|fertil|ovulat|pregnan|conceiv|avoid pregnancy|birth control/.test(x))return"fertility-awareness";
   if(/cramp|period pain|painful period|dysmenorr/.test(x))return"cramps";
-  if(/heavy|bleed|blood|clot/.test(x))return"heavy-bleeding";
+  if(/heavy|bleed|blood|clot|soak|flood|pad every hour|tampon every hour/.test(x))return"heavy-bleeding";
   if(/irregular|late|missed|cycle|amenorr/.test(x))return"irregular";
   if(/pad|hygiene|clean|tampon|cup/.test(x))return"hygiene";
   if(/first period|first menstru|menarche/.test(x))return"first-period";
