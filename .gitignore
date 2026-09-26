@@ -1,7 +1,12 @@
-node_modules
-.next
-.env
-.env.local
-.vercel
+node_modules/
+.next/
+.env*
+!.env.example
+.vercel/
 *.log
+*.tsbuildinfo
 .DS_Store
+playwright-report/
+test-results/
+__pycache__/
+.venv/
