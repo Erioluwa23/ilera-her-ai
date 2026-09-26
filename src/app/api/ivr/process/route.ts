@@ -3,10 +3,10 @@ import {answerQuestion,evidenceFor} from "@/lib/knowledge";
 import {normalizeLanguage} from "@/lib/languages";
 import {NatlasLLMProvider,NatlasSpeechProvider} from "@/lib/natlas";
 
-function authHeader(){
+function authHeader():Record<string,string>{
   const sid=process.env.TWILIO_ACCOUNT_SID,token=process.env.TWILIO_AUTH_TOKEN;
-  if(!sid||!token)return{};
-  return{Authorization:"Basic "+Buffer.from(sid+":"+token).toString("base64")};
+  if(!sid||!token)return {};
+  return {Authorization:"Basic "+Buffer.from(sid+":"+token).toString("base64")};
 }
 
 export async function POST(req:Request){
