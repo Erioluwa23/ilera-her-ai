@@ -1,0 +1,1 @@
+export async function GET(){return Response.json({ok:true,service:"ileraher-ai",natlasConfigured:Boolean(process.env.NATLAS_API_URL&&process.env.NATLAS_API_KEY)})}
