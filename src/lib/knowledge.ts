@@ -1,0 +1,10 @@
+export type Topic="cramps"|"heavy-bleeding"|"irregular"|"hygiene"|"first-period"|"unknown";
+const answers:Record<Exclude<Topic,"unknown">,string>={
+"cramps":"Period cramps are common, but pain that is severe, suddenly worse, repeatedly disrupts daily life, or comes with fainting or other worrying symptoms deserves medical assessment.",
+"heavy-bleeding":"Heavy bleeding can have different causes. If bleeding is unusually heavy for you, persists, or comes with fainting, marked weakness or dizziness, seek medical care promptly.",
+"irregular":"Cycles can vary. Tracking several cycles can reveal your baseline. Persistent major changes, missed periods when pregnancy is possible, or irregularity with other concerning symptoms should be discussed with a healthcare professional.",
+"hygiene":"Change menstrual products regularly, wash hands before and after changing them, and use clean products that feel comfortable. Seek care for fever, severe pain, or unusual symptoms.",
+"first-period":"A first period is a normal part of puberty. Cycles may be irregular at first. A trusted adult or healthcare professional can help with products, pain, or anything that worries you."
+};
+export function classifyQuestion(q:string):Topic{const x=q.toLowerCase();if(/cramp|pain|ache/.test(x))return"cramps";if(/heavy|bleed|blood/.test(x))return"heavy-bleeding";if(/irregular|late|missed|cycle/.test(x))return"irregular";if(/pad|hygiene|clean|tampon/.test(x))return"hygiene";if(/first period|first menstru/.test(x))return"first-period";return"unknown"}
+export function answerQuestion(q:string){const topic=classifyQuestion(q);return{topic,answer:topic==="unknown"?"I can help with period cramps, bleeding, cycle changes, menstrual hygiene and first-period questions. For personal medical concerns or severe symptoms, please speak with a qualified healthcare professional.":answers[topic]}}
