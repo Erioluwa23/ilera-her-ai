@@ -5,6 +5,7 @@ from typing import Optional
 
 import torch
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from huggingface_hub import hf_hub_download
 from pydantic import BaseModel
 from transformers import (
     AutoModelForCausalLM,
@@ -14,9 +15,10 @@ from transformers import (
     pipeline,
 )
 
-app = FastAPI(title="ÌleraHer N-ATLAS Inference", version="0.1.0")
+app = FastAPI(title="ÌleraHer N-ATLAS Inference", version="0.2.0")
 
 LLM_MODEL = os.getenv("NATLAS_LLM_MODEL", "NCAIR1/N-ATLaS")
+HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HUGGINGFACE_TOKEN")
 ASR_MODELS = {
     "en-NG": "NCAIR1/NigerianAccentedEnglish",
     "yo": "NCAIR1/Yoruba-ASR",
@@ -27,22 +29,32 @@ ASR_MODELS = {
 def device_name() -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
+def require_hf_token() -> str:
+    if not HF_TOKEN:
+        raise RuntimeError("Hugging Face token is not configured")
+    return HF_TOKEN
+
 @lru_cache(maxsize=1)
 def get_llm():
-    tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL)
+    token = require_hf_token()
+    tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL, token=token)
     model = AutoModelForCausalLM.from_pretrained(
         LLM_MODEL,
+        token=token,
         torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
         device_map="auto" if torch.cuda.is_available() else None,
+        low_cpu_mem_usage=True,
     )
     return tokenizer, model
 
 @lru_cache(maxsize=4)
 def get_asr(language: str):
+    token = require_hf_token()
     model_id = ASR_MODELS[language]
-    processor = AutoProcessor.from_pretrained(model_id)
+    processor = AutoProcessor.from_pretrained(model_id, token=token)
     model = AutoModelForSpeechSeq2Seq.from_pretrained(
         model_id,
+        token=token,
         torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
         low_cpu_mem_usage=True,
     )
@@ -71,9 +83,23 @@ def health():
     return {
         "ok": True,
         "device": device_name(),
+        "hf_token_configured": bool(HF_TOKEN),
         "llm": LLM_MODEL,
         "asr": ASR_MODELS,
     }
+
+@app.get("/access")
+def access():
+    token = require_hf_token()
+    models = [LLM_MODEL, *ASR_MODELS.values()]
+    results = {}
+    for model_id in models:
+        try:
+            hf_hub_download(repo_id=model_id, filename="config.json", token=token)
+            results[model_id] = {"accessible": True}
+        except Exception as exc:
+            results[model_id] = {"accessible": False, "error": str(exc)[:220]}
+    return {"ok": all(v["accessible"] for v in results.values()), "models": results}
 
 @app.post("/v1/asr")
 async def transcribe(
