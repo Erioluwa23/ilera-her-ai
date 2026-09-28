@@ -10,7 +10,7 @@ type Result={
   urgency:"routine"|"attention"|"urgent";
   disclaimer:string;
   sources:Source[];
-  model:"curated"|"n-atlas"|"hf-fallback";
+  model:"n-atlas"|"n-atlas-unavailable";
   language?:string;
   generationModel?:string|null;
   generationProvider?:string;
@@ -45,7 +45,7 @@ export default function AskIlera(){
   return <section className="panel">
     <span className="eyebrow">Ask Ìlera</span>
     <h2>Ask in Nigerian English, Yorùbá, Hausa or Igbo</h2>
-    <p className="muted">The selected language is preserved through medical grounding and the hosted Hugging Face response layer.</p>
+    <p className="muted">The selected language is preserved through medical grounding and the official N-ATLAS response layer.</p>
     <label className="voiceLanguage">Response language
       <select value={language} onChange={e=>setLanguage(e.target.value as IlaraLanguage)}>
         {LANGUAGE_OPTIONS.map(x=><option key={x.code} value={x.code}>{x.label}</option>)}
