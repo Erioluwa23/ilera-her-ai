@@ -1,3 +1,5 @@
+import {existsSync,readFileSync} from "node:fs";
+import {join} from "node:path";
 import {NATLAS_ASR_MODELS} from "@/lib/languages";
 export type SupportedLanguage="en-NG"|"yo"|"ha"|"ig";
 export type Transcript={
@@ -18,7 +20,24 @@ export type LlmAnswer={
 export interface SpeechProvider{transcribe(audio:Blob,language?:SupportedLanguage):Promise<Transcript>}
 
 export function huggingFaceToken(){
-  return process.env.HF_TOKEN||process.env.HUGGINGFACE_API_KEY||process.env.HUGGINGFACE_TOKEN;
+  const fromEnv=process.env.HF_TOKEN||process.env.HUGGINGFACE_API_KEY||process.env.HUGGINGFACE_TOKEN;
+  if(fromEnv?.trim())return fromEnv.trim();
+
+  const secretFileCandidates=[
+    "/etc/secrets/HF_TOKEN",
+    join(process.cwd(),"HF_TOKEN")
+  ];
+
+  for(const filePath of secretFileCandidates){
+    try{
+      if(existsSync(filePath)){
+        const value=readFileSync(filePath,"utf8").trim();
+        if(value)return value;
+      }
+    }catch{}
+  }
+
+  return undefined;
 }
 
 function languageEndpoint(language:SupportedLanguage){
