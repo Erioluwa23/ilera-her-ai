@@ -22,10 +22,13 @@ export async function POST(req:Request){
     const audio=await audioRes.blob();
 
     const transcript=await new NatlasSpeechProvider().transcribe(audio,language);
-    const grounded=answerQuestion(transcript.text);
+    const grounded=answerQuestion(transcript.text,language);
     let answer=grounded.answer;
     if(process.env.NATLAS_LLM_API_URL){
-      try{answer=await new NatlasLLMProvider().answer(transcript.text,evidenceFor(grounded),language)}catch{}
+      try{
+        const generated=await new NatlasLLMProvider().answer(transcript.text,evidenceFor(grounded),language);
+        answer=generated.text;
+      }catch{}
     }
 
     const spoken=xmlEscape(answer+" "+grounded.disclaimer);
