@@ -60,25 +60,6 @@ async function parseError(res:Response){
   }
 }
 
-async function hfNatlasAsr(audio:Blob,model:string,token:string){
-  const url=`https://router.huggingface.co/hf-inference/models/${model}`;
-  const res=await fetch(url,{
-    method:"POST",
-    headers:{
-      Authorization:`Bearer ${token}`,
-      "Content-Type":audio.type||"audio/webm"
-    },
-    body:audio
-  });
-  if(!res.ok){
-    throw new Error(`Official N-ATLAS ASR model ${model} is not available through Hugging Face serverless inference (${res.status}): ${await parseError(res)}`);
-  }
-  const data=await res.json();
-  const text=data?.text??data?.transcription;
-  if(typeof text!=="string"||!text.trim())throw new Error("Invalid N-ATLAS ASR response");
-  return text.trim();
-}
-
 export class NatlasSpeechProvider implements SpeechProvider{
  async transcribe(audio:Blob,language:SupportedLanguage="en-NG"):Promise<Transcript>{
   const model=NATLAS_ASR_MODELS[language];
