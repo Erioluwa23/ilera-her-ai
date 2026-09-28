@@ -11,18 +11,31 @@ export async function POST(req:Request){
     const question=body.question.trim().slice(0,1200);
     const language=normalizeLanguage(typeof body.language==="string"?body.language:"en-NG");
     const grounded=answerQuestion(question,language);
-    const canTryNatlas=Boolean(process.env.NATLAS_LLM_API_URL||huggingFaceToken());
+    const canTryHostedInference=Boolean(process.env.NATLAS_LLM_API_URL||huggingFaceToken());
 
-    if(canTryNatlas){
+    if(canTryHostedInference){
       try{
-        const answer=await new NatlasLLMProvider().answer(question,evidenceFor(grounded),language);
-        return Response.json({...localizeHealthAnswer(grounded,language),answer,language,model:"n-atlas"});
+        const generated=await new NatlasLLMProvider().answer(question,evidenceFor(grounded),language);
+        return Response.json({
+          ...localizeHealthAnswer(grounded,language),
+          answer:generated.text,
+          language,
+          model:generated.natlas?"n-atlas":"hf-fallback",
+          generationModel:generated.model,
+          generationProvider:generated.provider
+        });
       }catch(error){
-        console.error("N-ATLAS LLM fallback:",error);
+        console.error("Hosted LLM fallback:",error);
       }
     }
 
-    return Response.json({...localizeHealthAnswer(grounded,language),language,model:"curated"});
+    return Response.json({
+      ...localizeHealthAnswer(grounded,language),
+      language,
+      model:"curated",
+      generationModel:null,
+      generationProvider:"curated"
+    });
   }catch{
     return Response.json({error:"Invalid request."},{status:400});
   }
