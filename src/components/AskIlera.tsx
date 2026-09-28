@@ -36,11 +36,7 @@ export default function AskIlera(){
     }finally{setBusy(false)}
   }
 
-  const engine=result?.model==="n-atlas"
-    ?"N-ATLAS via Hugging Face"
-    :result?.model==="hf-fallback"
-      ?`Hugging Face hosted fallback (${result.generationModel||"hosted model"})`
-      :"Curated medical grounding";
+  const engine=result?.model==="n-atlas"?"N-ATLAS":"N-ATLAS unavailable";
 
   return <section className="panel">
     <span className="eyebrow">Ask Ìlera</span>
