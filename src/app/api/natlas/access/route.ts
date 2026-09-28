@@ -1,3 +1,5 @@
+import {huggingFaceToken} from "@/lib/natlas";
+
 const MODELS=[
   "NCAIR1/N-ATLaS",
   "NCAIR1/NigerianAccentedEnglish",
@@ -6,12 +8,8 @@ const MODELS=[
   "NCAIR1/Igbo-ASR"
 ];
 
-function token(){
-  return process.env.HF_TOKEN||process.env.HUGGINGFACE_API_KEY||process.env.HUGGINGFACE_TOKEN;
-}
-
 export async function GET(){
-  const key=token();
+  const key=huggingFaceToken();
   if(!key){
     return Response.json({ok:false,configured:false,error:"Hugging Face token is not configured on this service."},{status:503});
   }
