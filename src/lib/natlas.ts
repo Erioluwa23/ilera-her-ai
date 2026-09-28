@@ -5,28 +5,20 @@ export type Transcript={
   language?:SupportedLanguage;
   model?:string;
   provider?:"self-hosted"|"hf-inference";
-  natlas?:boolean;
+  natlas:true;
 };
 
 export type LlmAnswer={
   text:string;
   model:string;
   provider:"self-hosted"|"hf-inference";
-  natlas:boolean;
+  natlas:true;
 };
 
 export interface SpeechProvider{transcribe(audio:Blob,language?:SupportedLanguage):Promise<Transcript>}
 
 export function huggingFaceToken(){
   return process.env.HF_TOKEN||process.env.HUGGINGFACE_API_KEY||process.env.HUGGINGFACE_TOKEN;
-}
-
-export function hfAsrFallbackModel(){
-  return process.env.HF_ASR_FALLBACK_MODEL||"openai/whisper-large-v3";
-}
-
-export function hfLlmFallbackModel(){
-  return process.env.HF_LLM_FALLBACK_MODEL||"Qwen/Qwen3-8B:fastest";
 }
 
 function languageEndpoint(language:SupportedLanguage){
@@ -48,7 +40,7 @@ async function parseError(res:Response){
   }
 }
 
-async function hfAsr(audio:Blob,model:string,token:string){
+async function hfNatlasAsr(audio:Blob,model:string,token:string){
   const url=`https://router.huggingface.co/hf-inference/models/${model}`;
   const res=await fetch(url,{
     method:"POST",
@@ -58,16 +50,18 @@ async function hfAsr(audio:Blob,model:string,token:string){
     },
     body:audio
   });
-  if(!res.ok)throw new Error(`${model} failed (${res.status}): ${await parseError(res)}`);
+  if(!res.ok){
+    throw new Error(`Official N-ATLAS ASR model ${model} is not available through Hugging Face serverless inference (${res.status}): ${await parseError(res)}`);
+  }
   const data=await res.json();
   const text=data?.text??data?.transcription;
-  if(typeof text!=="string"||!text.trim())throw new Error(`${model} returned an invalid ASR response`);
+  if(typeof text!=="string"||!text.trim())throw new Error("Invalid N-ATLAS ASR response");
   return text.trim();
 }
 
 export class NatlasSpeechProvider implements SpeechProvider{
  async transcribe(audio:Blob,language:SupportedLanguage="en-NG"):Promise<Transcript>{
-  const natlasModel=NATLAS_ASR_MODELS[language];
+  const model=NATLAS_ASR_MODELS[language];
   const url=languageEndpoint(language);
   const endpointKey=process.env.NATLAS_ASR_API_KEY||process.env.NATLAS_API_KEY;
 
@@ -75,34 +69,22 @@ export class NatlasSpeechProvider implements SpeechProvider{
     const body=new FormData();
     body.append("audio",audio,"speech.webm");
     body.append("language",language);
-    body.append("model",natlasModel);
+    body.append("model",model);
     const headers:Record<string,string>={};
     if(endpointKey)headers.Authorization=`Bearer ${endpointKey}`;
     const res=await fetch(url,{method:"POST",headers,body});
     if(!res.ok)throw new Error(`N-ATLAS ASR endpoint failed (${res.status}): ${await parseError(res)}`);
     const data=await res.json();
     const text=data?.text??data?.transcription??data?.result?.text;
-    if(typeof text!=="string")throw new Error("Invalid N-ATLAS ASR response");
-    return{text,language,model:natlasModel,provider:"self-hosted",natlas:true};
+    if(typeof text!=="string"||!text.trim())throw new Error("Invalid N-ATLAS ASR response");
+    return{text:text.trim(),language,model,provider:"self-hosted",natlas:true};
   }
 
   const token=huggingFaceToken();
   if(!token)throw new Error("HF_TOKEN is not available to the app runtime.");
 
-  try{
-    const text=await hfAsr(audio,natlasModel,token);
-    return{text,language,model:natlasModel,provider:"hf-inference",natlas:true};
-  }catch(natlasError){
-    const fallbackModel=hfAsrFallbackModel();
-    try{
-      const text=await hfAsr(audio,fallbackModel,token);
-      return{text,language,model:fallbackModel,provider:"hf-inference",natlas:false};
-    }catch(fallbackError){
-      const a=natlasError instanceof Error?natlasError.message:String(natlasError);
-      const b=fallbackError instanceof Error?fallbackError.message:String(fallbackError);
-      throw new Error(`Hugging Face ASR failed. N-ATLAS: ${a}. Fallback: ${b}`);
-    }
-  }
+  const text=await hfNatlasAsr(audio,model,token);
+  return{text,language,model,provider:"hf-inference",natlas:true};
  }
 }
 
@@ -116,10 +98,10 @@ async function chatRequest(url:string,key:string|undefined,model:string,system:s
       {role:"user",content:`GROUNDED_CONTEXT:\n${JSON.stringify(groundedContext)}\n\nUSER_QUESTION:\n${question}`}
     ]
   })});
-  if(!res.ok)throw new Error(`${model} failed (${res.status}): ${await parseError(res)}`);
+  if(!res.ok)throw new Error(`Official N-ATLAS LLM ${model} failed (${res.status}): ${await parseError(res)}`);
   const data=await res.json();
   const text=data?.choices?.[0]?.message?.content??data?.text??data?.generated_text;
-  if(typeof text!=="string"||!text.trim())throw new Error(`${model} returned an invalid chat response`);
+  if(typeof text!=="string"||!text.trim())throw new Error("Invalid N-ATLAS LLM response");
   return text.trim();
 }
 
@@ -128,7 +110,7 @@ export class NatlasLLMProvider{
   const configuredUrl=process.env.NATLAS_LLM_API_URL;
   const endpointKey=process.env.NATLAS_LLM_API_KEY;
   const token=huggingFaceToken();
-  const natlasModel=process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS";
+  const model=process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS";
 
   const languageInstruction:Record<SupportedLanguage,string>={
     "en-NG":"Reply in clear Nigerian English.",
@@ -149,27 +131,13 @@ export class NatlasLLMProvider{
   ].join(" ");
 
   if(configuredUrl){
-    const text=await chatRequest(configuredUrl,endpointKey,natlasModel,system,question,groundedContext);
-    return{text,model:natlasModel,provider:"self-hosted",natlas:true};
+    const text=await chatRequest(configuredUrl,endpointKey,model,system,question,groundedContext);
+    return{text,model,provider:"self-hosted",natlas:true};
   }
 
   if(!token)throw new Error("HF_TOKEN is not available to the app runtime.");
-  const router="https://router.huggingface.co/v1/chat/completions";
-
-  try{
-    const text=await chatRequest(router,token,natlasModel,system,question,groundedContext);
-    return{text,model:natlasModel,provider:"hf-inference",natlas:true};
-  }catch(natlasError){
-    const fallbackModel=hfLlmFallbackModel();
-    try{
-      const text=await chatRequest(router,token,fallbackModel,system,question,groundedContext);
-      return{text,model:fallbackModel,provider:"hf-inference",natlas:false};
-    }catch(fallbackError){
-      const a=natlasError instanceof Error?natlasError.message:String(natlasError);
-      const b=fallbackError instanceof Error?fallbackError.message:String(fallbackError);
-      throw new Error(`Hugging Face chat failed. N-ATLAS: ${a}. Fallback: ${b}`);
-    }
-  }
+  const text=await chatRequest("https://router.huggingface.co/v1/chat/completions",token,model,system,question,groundedContext);
+  return{text,model,provider:"hf-inference",natlas:true};
  }
 }
 export class NatlasProvider extends NatlasSpeechProvider{}
