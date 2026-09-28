@@ -3,7 +3,18 @@ import {useState} from "react";
 import {LANGUAGE_OPTIONS,IlaraLanguage} from "@/lib/languages";
 
 type Source={title:string;organization:string;url:string};
-type Result={answer:string;possibleCauses:string[];nextSteps:string[];urgency:"routine"|"attention"|"urgent";disclaimer:string;sources:Source[];model:"curated"|"n-atlas";language?:string};
+type Result={
+  answer:string;
+  possibleCauses:string[];
+  nextSteps:string[];
+  urgency:"routine"|"attention"|"urgent";
+  disclaimer:string;
+  sources:Source[];
+  model:"curated"|"n-atlas"|"hf-fallback";
+  language?:string;
+  generationModel?:string|null;
+  generationProvider?:string;
+};
 
 export default function AskIlera(){
   const [q,setQ]=useState("");
@@ -25,10 +36,16 @@ export default function AskIlera(){
     }finally{setBusy(false)}
   }
 
+  const engine=result?.model==="n-atlas"
+    ?"N-ATLAS via Hugging Face"
+    :result?.model==="hf-fallback"
+      ?`Hugging Face hosted fallback (${result.generationModel||"hosted model"})`
+      :"Curated medical grounding";
+
   return <section className="panel">
     <span className="eyebrow">Ask Ìlera</span>
     <h2>Ask in Nigerian English, Yorùbá, Hausa or Igbo</h2>
-    <p className="muted">The selected language is passed to the N-ATLAS response layer while medical facts remain grounded in named sources.</p>
+    <p className="muted">The selected language is preserved through medical grounding and the hosted Hugging Face response layer.</p>
     <label className="voiceLanguage">Response language
       <select value={language} onChange={e=>setLanguage(e.target.value as IlaraLanguage)}>
         {LANGUAGE_OPTIONS.map(x=><option key={x.code} value={x.code}>{x.label}</option>)}
@@ -47,7 +64,7 @@ export default function AskIlera(){
       <div className={"risk "+result.urgency}><strong>Urgency: {result.urgency}</strong></div>
       <p className="disclaimer">{result.disclaimer}</p>
       <div className="sources"><strong>Sources</strong>{result.sources.map((s,i)=><a key={i} href={s.url} target="_blank" rel="noreferrer">{s.organization}: {s.title}</a>)}</div>
-      <small>Response engine: {result.model==="n-atlas"?"N-ATLAS LLM + curated medical grounding":"Curated medical grounding (N-ATLAS LLM endpoint not yet configured)"}</small>
+      <small>Response engine: {engine}</small>
     </div>}
   </section>;
 }
