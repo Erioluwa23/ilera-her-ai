@@ -1,6 +1,7 @@
 import {existsSync,readFileSync} from "node:fs";
 import {join} from "node:path";
 import {NATLAS_ASR_MODELS} from "@/lib/languages";
+import {transcribeViaNatlasSpace} from "@/lib/natlas-space";
 export type SupportedLanguage="en-NG"|"yo"|"ha"|"ig";
 export type Transcript={
   text:string;
@@ -99,11 +100,8 @@ export class NatlasSpeechProvider implements SpeechProvider{
     return{text:text.trim(),language,model,provider:"self-hosted",natlas:true};
   }
 
-  const token=huggingFaceToken();
-  if(!token)throw new Error("HF_TOKEN is not available to the app runtime.");
-
-  const text=await hfNatlasAsr(audio,model,token);
-  return{text,language,model,provider:"hf-inference",natlas:true};
+  const viaSpace=await transcribeViaNatlasSpace(audio,language);
+  return{text:viaSpace.text,language,model,provider:"hf-inference",natlas:true};
  }
 }
 
