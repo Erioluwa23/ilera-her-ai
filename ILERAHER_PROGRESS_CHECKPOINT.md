@@ -57,10 +57,19 @@
 5. Run consented/licensed non-sensitive speech through production Render in all four languages. Record expected words, exact transcript/model/provenance/HTTP/latency and limitations here. Verify actual memory behavior and quota errors.
 6. Verify actual Render live commit after auto-deploy. Record deployment identifiers below. No duplicate manual deploy if auto-deploy starts.
 
-## Deployment follow-up
+## Deployment follow-up (verified)
 
-- Repair code committed on main: 2f8dee7d76da9495af3c49c7e8461b3144f27a4f.
-- GitHub CI run 37155778168 completed successfully for that exact commit.
-- Render auto-deploy is enabled, but no deployment for the repair commit was observed in repeated deployment-list checks after CI succeeded. Do not create a duplicate manual deployment while automatic deployment is configured.
-- Last independently verified live revision remains 3214bea66f7de2eca4dd05f5d1e917d135ddbc36, deployment dep-db0m4l1srm7s7386uarg. The repairs are not yet proven live.
-- Hugging Face SDK/hardware/files were not modified; secrets were not entered. Secure sign-in and actual free-compute eligibility remain the first external blocker.
+- Repair code: 2f8dee7d76da9495af3c49c7e8461b3144f27a4f; CI 37155778168 succeeded.
+- Live application revision: d31b340ef4b99b0b9baa699bcbaec27dbbb6aa0c; CI 37155896058 succeeded (75 JS tests, production build, 4 Python lifecycle tests).
+- Render deployment: dep-db0ncnk9v7es73c755ig, status live, finished 2026-10-03T21:42:01.552196Z. Repeated checks showed no automatic deployment after successful CI. One cleared-cache deployment was requested; no duplicate deployment was started.
+- Actual production /api/health: HTTP 200; fixed owned Space target configured; SDK static; runtime reachable=false; asrReady=false; inferenceTested=false.
+- Actual production /lite: HTTP 200.
+- Actual production /api/natlas/access now requests gated config.json files: N-ATLaS text config HTTP 200; ALL FOUR ASR configs HTTP 403. The existing Render credential is recognized but lacks effective access to these ASR files. Public metadata does not prove access.
+- Text LLM is not configured on the live revision; health reports curated-fallback. No generative N-ATLAS text inference was tested.
+- Public Static client inspection found no HF-token pattern in fetched HTML, but this is a limited check, not a guarantee about all files/settings. No secrets were entered or exposed by this work.
+- HF Space revision remains 07dbc8727950fc7f234b071766d9c8c1a281891e, SDK static, no current/requested compute hardware. No HF files, hardware or secrets were modified.
+- Final repository follow-up only updates checkpoint and the undeployed Space scaffold (quotes Python version metadata, enables Whisper long-form timestamp generation). It does not change the live Render application code and is not evidence of a deployed Space.
+
+## Exact continuation
+
+Secure sign-in as Erioluwa24 and Save profile is needed to inspect actual ZeroGPU eligibility and the four model access forms. Verify/obtain approved gated access for the identity owning the runtime read token; if a new token is needed, enter it only through secure server-secret settings. Do not send credentials in chat. Confirm compute before entering any Space secret. Then deploy the existing runtime, verify loaded revisions and memory, and perform four real production speech tests. Live ASR remains blocked; text generation and actual IVR calls remain unverified.

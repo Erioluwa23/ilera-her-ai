@@ -5,7 +5,7 @@ colorFrom: pink
 colorTo: purple
 sdk: gradio
 sdk_version: 5.49.1
-python_version: 3.10
+python_version: "3.10"
 suggested_hardware: zero-a10g
 app_file: app.py
 pinned: false

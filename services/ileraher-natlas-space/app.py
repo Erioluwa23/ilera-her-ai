@@ -69,7 +69,7 @@ def cleanup_audio(path):
 @spaces.GPU(duration=60)
 def infer(samples, language):
     with torch.inference_mode():
-        return PIPELINES[language]({"raw": samples, "sampling_rate": 16000})
+        return PIPELINES[language]({"raw": samples, "sampling_rate": 16000}, return_timestamps=True)
 
 
 def transcribe(audio_path, language):
