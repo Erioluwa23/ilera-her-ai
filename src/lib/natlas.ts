@@ -1,20 +1,20 @@
 import {existsSync,readFileSync} from "node:fs";
 import {join} from "node:path";
 import {NATLAS_ASR_MODELS} from "@/lib/languages";
-import {transcribeViaNatlasSpace} from "@/lib/natlas-space";
+import {generateViaNatlasSpace,transcribeViaNatlasSpace} from "@/lib/natlas-space";
 export type SupportedLanguage="en-NG"|"yo"|"ha"|"ig";
 export type Transcript={
   text:string;
   language?:SupportedLanguage;
   model?:string;
-  provider?:"self-hosted"|"hf-inference";
+  provider?:"self-hosted"|"hf-space";
   natlas:true;
 };
 
 export type LlmAnswer={
   text:string;
   model:string;
-  provider:"self-hosted"|"hf-inference";
+  provider:"self-hosted"|"hf-space";
   natlas:true;
 };
 
@@ -82,7 +82,7 @@ export class NatlasSpeechProvider implements SpeechProvider{
   }
 
   const viaSpace=await transcribeViaNatlasSpace(audio,language);
-  return{text:viaSpace.text,language,model,provider:"hf-inference",natlas:true};
+  return{text:viaSpace.text,language,model,provider:"hf-space",natlas:true};
  }
 }
 
@@ -107,7 +107,6 @@ export class NatlasLLMProvider{
  async answer(question:string,groundedContext:unknown,language:SupportedLanguage="en-NG"):Promise<LlmAnswer>{
   const configuredUrl=process.env.NATLAS_LLM_API_URL;
   const endpointKey=process.env.NATLAS_LLM_API_KEY;
-  const token=huggingFaceToken();
   const model=process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS";
 
   const languageInstruction:Record<SupportedLanguage,string>={
@@ -133,9 +132,8 @@ export class NatlasLLMProvider{
     return{text,model,provider:"self-hosted",natlas:true};
   }
 
-  if(!token)throw new Error("HF_TOKEN is not available to the app runtime.");
-  const text=await chatRequest("https://router.huggingface.co/v1/chat/completions",token,model,system,question,groundedContext);
-  return{text,model,provider:"hf-inference",natlas:true};
+  const generated=await generateViaNatlasSpace(question,groundedContext,language,system);
+  return{text:generated.text,model,provider:"hf-space",natlas:true};
  }
 }
 export class NatlasProvider extends NatlasSpeechProvider{}
