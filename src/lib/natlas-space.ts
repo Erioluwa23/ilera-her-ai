@@ -8,21 +8,48 @@ const LANGUAGE_LABELS:Record<SupportedLanguage,string>={
   ig:"Igbo"
 };
 
-const DEFAULT_SPACES:Record<SupportedLanguage,string>={
-  "en-NG":"panamabananaman/NCAIR-Audio-Demo",
-  yo:"ayscript/NCAIR-Yoruba",
-  ha:"DevEmmy/scriptflow-hausa",
-  ig:"panamabananaman/igbo-asr"
+const DEFAULT_ASR_SPACES:Record<SupportedLanguage,string[]>={
+  "en-NG":["panamabananaman/NCAIR-Audio-Demo"],
+  yo:["ayscript/NCAIR-Yoruba"],
+  ha:["DevEmmy/scriptflow-hausa"],
+  ig:["panamabananaman/igbo-asr"]
 };
 
-export function natlasSpaceId(language:SupportedLanguage){
-  const configured:Record<SupportedLanguage,string|undefined>={
+const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+
+function configuredAsrSpaces(language:SupportedLanguage){
+  const specific:Record<SupportedLanguage,string|undefined>={
     "en-NG":process.env.NATLAS_HF_SPACE_EN_NG,
     yo:process.env.NATLAS_HF_SPACE_YO,
     ha:process.env.NATLAS_HF_SPACE_HA,
     ig:process.env.NATLAS_HF_SPACE_IG
   };
-  return configured[language]||process.env.NATLAS_HF_SPACE||DEFAULT_SPACES[language];
+  const shared=process.env.NATLAS_HF_SPACE;
+  const configured=(specific[language]||shared||"")
+    .split(",").map(x=>x.trim()).filter(Boolean);
+  return configured.length?configured:DEFAULT_ASR_SPACES[language];
+}
+
+export function natlasSpaceId(language:SupportedLanguage){
+  return configuredAsrSpaces(language)[0];
+}
+
+export function natlasLlmSpaceId(){
+  return process.env.NATLAS_HF_LLM_SPACE?.trim()||null;
+}
+
+async function connectWithRetry(space:string){
+  let lastError:unknown;
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      return await Client.connect(space);
+    }catch(error){
+      lastError=error;
+      if(attempt<2)await sleep(attempt===0?2500:7000);
+    }
+  }
+  const message=lastError instanceof Error?lastError.message:String(lastError);
+  throw new Error(`N-ATLAS Hugging Face Space ${space} is unavailable after retries: ${message}`);
 }
 
 function isAudioParam(p:any){
@@ -54,29 +81,8 @@ function extractText(value:any):string|undefined{
   return undefined;
 }
 
-async function connect(language:SupportedLanguage){
-  return Client.connect(natlasSpaceId(language));
-}
-
-export async function inspectNatlasSpace(language:SupportedLanguage){
-  const app=await connect(language);
-  const api:any=await app.view_api();
-  const named=api?.named_endpoints||{};
-  return {
-    space:natlasSpaceId(language),
-    endpoints:Object.entries(named).map(([name,info]:[string,any])=>({
-      name,
-      parameters:(info?.parameters||[]).map((p:any)=>({
-        label:p?.label??p?.parameter_name??null,
-        component:p?.component??null,
-        type:p?.type??p?.python_type?.type??null
-      }))
-    }))
-  };
-}
-
-export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLanguage){
-  const app=await connect(language);
+async function transcribeOne(space:string,audio:Blob,language:SupportedLanguage){
+  const app=await connectWithRetry(space);
   const api:any=await app.view_api();
   const entries=Object.entries(api?.named_endpoints||{}) as [string,any][];
   const candidates=entries
@@ -89,10 +95,7 @@ export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLang
       return score(a)-score(b);
     });
 
-  if(!candidates.length){
-    throw new Error(`N-ATLAS Space ${natlasSpaceId(language)} exposes no audio API endpoint.`);
-  }
-
+  if(!candidates.length)throw new Error(`Space ${space} exposes no audio API endpoint.`);
   const [endpoint,info]=candidates[0];
   const payload=(info.parameters||[]).map((p:any)=>{
     if(isAudioParam(p))return audio;
@@ -103,15 +106,35 @@ export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLang
 
   const result:any=await app.predict(endpoint,payload);
   const text=extractText(result?.data);
-  if(!text)throw new Error("N-ATLAS Space returned no transcription text.");
-  return {text,endpoint,space:natlasSpaceId(language)};
+  if(!text)throw new Error(`Space ${space} returned no transcription text.`);
+  return {text,endpoint,space};
 }
 
+export async function inspectNatlasSpace(language:SupportedLanguage){
+  const spaces=configuredAsrSpaces(language);
+  const checks=[];
+  for(const space of spaces){
+    try{
+      const app=await connectWithRetry(space);
+      const api:any=await app.view_api();
+      checks.push({space,ok:true,endpoints:Object.keys(api?.named_endpoints||{})});
+    }catch(error){
+      checks.push({space,ok:false,error:error instanceof Error?error.message:String(error)});
+    }
+  }
+  return {language,spaces:checks};
+}
 
-const DEFAULT_LLM_SPACE="Zeeskylaw/N-ATLaS-Demo";
-
-export function natlasLlmSpaceId(){
-  return process.env.NATLAS_HF_LLM_SPACE||DEFAULT_LLM_SPACE;
+export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLanguage){
+  const failures:string[]=[];
+  for(const space of configuredAsrSpaces(language)){
+    try{
+      return await transcribeOne(space,audio,language);
+    }catch(error){
+      failures.push(`${space}: ${error instanceof Error?error.message:String(error)}`);
+    }
+  }
+  throw new Error(`No configured N-ATLAS ASR Space is currently available. ${failures.join(" | ")}`);
 }
 
 function textParamKind(p:any){
@@ -121,6 +144,8 @@ function textParamKind(p:any){
   if(name.includes("system"))return "system";
   if(name.includes("history")||name.includes("chatbot")||component.includes("chatbot"))return "history";
   if(name.includes("language")||name==="lang")return "language";
+  if(name.includes("model"))return "model";
+  if(name.includes("task"))return "task";
   if(name.includes("temperature"))return "temperature";
   if(name.includes("token")||name.includes("length"))return "tokens";
   if(name.includes("message")||name.includes("question")||name.includes("prompt")||name.includes("input")||component.includes("textbox")||type.includes("str"))return "text";
@@ -134,10 +159,13 @@ export async function generateViaNatlasSpace(
   system:string
 ){
   const space=natlasLlmSpaceId();
-  const app=await Client.connect(space);
+  if(!space){
+    throw new Error("N-ATLAS LLM Hugging Face Space is not configured. Set NATLAS_HF_LLM_SPACE to the project-owned ZeroGPU Space.");
+  }
+
+  const app=await connectWithRetry(space);
   const api:any=await app.view_api();
   const entries=Object.entries(api?.named_endpoints||{}) as [string,any][];
-
   const candidates=entries
     .filter(([,info])=>Array.isArray(info?.parameters)&&info.parameters.some((p:any)=>{
       const kind=textParamKind(p);
@@ -164,6 +192,8 @@ export async function generateViaNatlasSpace(
     if(kind==="system")return system;
     if(kind==="history")return [];
     if(kind==="language")return LANGUAGE_LABELS[language];
+    if(kind==="model")return "NCAIR1/N-ATLaS";
+    if(kind==="task")return "Chat";
     if(kind==="temperature")return p?.parameter_has_default?p?.parameter_default:0.1;
     if(kind==="tokens")return p?.parameter_has_default?p?.parameter_default:700;
     if(kind==="text"){
