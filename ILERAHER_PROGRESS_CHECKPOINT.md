@@ -33,6 +33,7 @@
 
 - npm test: 75 tests passed; includes aliases, mappings, upload failures, bounded chunked requests, actual installed SDK multipart byte serialization, provenance rejection, sanitized errors, cancellation, timeout, Static readiness, web/API fields and IVR Blob-provider compatibility.
 - npm run build: passed. Homepage, /lite, ASR API alias and IVR routes compile.
+- Runtime upload lifecycle: 4 isolated Python tests passed, including success/error cleanup and preventing deletion outside Gradio cache. These do not load weights or prove inference.
 - python -m py_compile services/ileraher-natlas-space/app.py: passed (syntax only).
 - Local browser daemon failed twice before navigation; browser interaction/visual verification unavailable. Local loopback HTTP was also unreachable from separate tool executions. Do not infer UI validation from the build.
 - Real speech tests: NOT RUN. No functioning ASR compute runtime currently exists. No silence fixture was counted as a speech success.
@@ -58,4 +59,8 @@
 
 ## Deployment follow-up
 
-This checkpoint belongs to the repair commit; GitHub commit and Render deployment IDs will be recorded after publication. Until then, the independently verified live revision remains 3214bea66f7de2eca4dd05f5d1e917d135ddbc36.
+- Repair code committed on main: 2f8dee7d76da9495af3c49c7e8461b3144f27a4f.
+- GitHub CI run 37155778168 completed successfully for that exact commit.
+- Render auto-deploy is enabled, but no deployment for the repair commit was observed in repeated deployment-list checks after CI succeeded. Do not create a duplicate manual deployment while automatic deployment is configured.
+- Last independently verified live revision remains 3214bea66f7de2eca4dd05f5d1e917d135ddbc36, deployment dep-db0m4l1srm7s7386uarg. The repairs are not yet proven live.
+- Hugging Face SDK/hardware/files were not modified; secrets were not entered. Secure sign-in and actual free-compute eligibility remain the first external blocker.
