@@ -1,6 +1,6 @@
 import {answerQuestion,evidenceFor,localizeHealthAnswer} from "@/lib/knowledge";
 import {normalizeLanguage} from "@/lib/languages";
-import {huggingFaceToken,NatlasLLMProvider} from "@/lib/natlas";
+import {NatlasLLMProvider} from "@/lib/natlas";
 
 export async function POST(req:Request){
   try{
@@ -12,9 +12,6 @@ export async function POST(req:Request){
     const language=normalizeLanguage(typeof body.language==="string"?body.language:"en-NG");
     const grounded=answerQuestion(question,language);
 
-    if(!process.env.NATLAS_LLM_API_URL&&!huggingFaceToken()){
-      return Response.json({error:"N-ATLAS is not configured. HF_TOKEN is missing."},{status:503});
-    }
 
     try{
       const generated=await new NatlasLLMProvider().answer(question,evidenceFor(grounded),language);
