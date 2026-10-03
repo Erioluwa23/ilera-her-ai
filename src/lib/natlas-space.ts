@@ -1,37 +1,13 @@
-import {Client} from "@gradio/client";
+import {Client,handle_file} from "@gradio/client";
 import type {SupportedLanguage} from "@/lib/natlas";
-
-const LANGUAGE_LABELS:Record<SupportedLanguage,string>={
-  "en-NG":"Nigerian English",
-  yo:"Yoruba",
-  ha:"Hausa",
-  ig:"Igbo"
-};
-
-const DEFAULT_ASR_SPACES:Record<SupportedLanguage,string[]>={
-  "en-NG":["panamabananaman/NCAIR-Audio-Demo"],
-  yo:["ayscript/NCAIR-Yoruba"],
-  ha:["DevEmmy/scriptflow-hausa"],
-  ig:["panamabananaman/igbo-asr"]
-};
+import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
 
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
-function configuredAsrSpaces(language:SupportedLanguage){
-  const specific:Record<SupportedLanguage,string|undefined>={
-    "en-NG":process.env.NATLAS_HF_SPACE_EN_NG,
-    yo:process.env.NATLAS_HF_SPACE_YO,
-    ha:process.env.NATLAS_HF_SPACE_HA,
-    ig:process.env.NATLAS_HF_SPACE_IG
-  };
-  const shared=process.env.NATLAS_HF_SPACE;
-  const configured=(specific[language]||shared||"")
-    .split(",").map(x=>x.trim()).filter(Boolean);
-  return configured.length?configured:DEFAULT_ASR_SPACES[language];
-}
-
-export function natlasSpaceId(language:SupportedLanguage){
-  return configuredAsrSpaces(language)[0];
+export function natlasSpaceId(){
+  const space=process.env.NATLAS_HF_SPACE?.trim();
+  if(!space)throw new Error("ÌleraHer N-ATLAS Hugging Face Space is not configured. Set NATLAS_HF_SPACE.");
+  return space;
 }
 
 export function natlasLlmSpaceId(){
@@ -52,89 +28,53 @@ async function connectWithRetry(space:string){
   throw new Error(`N-ATLAS Hugging Face Space ${space} is unavailable after retries: ${message}`);
 }
 
-function isAudioParam(p:any){
-  const component=String(p?.component||"").toLowerCase();
-  const type=String(p?.type||p?.python_type?.type||"").toLowerCase();
-  const name=String(p?.parameter_name||p?.label||"").toLowerCase();
-  return component.includes("audio")||type.includes("audio")||name.includes("audio");
-}
-
-function isLanguageParam(p:any){
-  const name=String(p?.parameter_name||p?.label||"").toLowerCase();
-  return name.includes("language")||name==="lang";
-}
-
-function extractText(value:any):string|undefined{
-  if(typeof value==="string"&&value.trim())return value.trim();
-  if(Array.isArray(value)){
-    for(const item of value){
-      const text=extractText(item);
-      if(text)return text;
-    }
+function extractJson(value:any){
+  if(typeof value==="string"){
+    try{return JSON.parse(value)}catch{return {text:value}}
   }
-  if(value&&typeof value==="object"){
-    for(const key of ["text","transcription","transcript","output","result","value","data"]){
-      const text=extractText(value[key]);
-      if(text)return text;
-    }
-  }
-  return undefined;
+  if(Array.isArray(value)&&value.length===1)return extractJson(value[0]);
+  if(value&&typeof value==="object"&&"data" in value)return extractJson(value.data);
+  return value;
 }
 
-async function transcribeOne(space:string,audio:Blob,language:SupportedLanguage){
+export async function inspectNatlasSpace(){
+  const space=natlasSpaceId();
   const app=await connectWithRetry(space);
   const api:any=await app.view_api();
-  const entries=Object.entries(api?.named_endpoints||{}) as [string,any][];
-  const candidates=entries
-    .filter(([,info])=>Array.isArray(info?.parameters)&&info.parameters.some(isAudioParam))
-    .sort((a,b)=>{
-      const score=(entry:[string,any])=>{
-        const params=entry[1]?.parameters||[];
-        return params.filter((p:any)=>!p?.parameter_has_default&&!isAudioParam(p)&&!isLanguageParam(p)).length;
-      };
-      return score(a)-score(b);
-    });
-
-  if(!candidates.length)throw new Error(`Space ${space} exposes no audio API endpoint.`);
-  const [endpoint,info]=candidates[0];
-  const payload=(info.parameters||[]).map((p:any)=>{
-    if(isAudioParam(p))return audio;
-    if(isLanguageParam(p))return LANGUAGE_LABELS[language];
-    if(p?.parameter_has_default)return p?.parameter_default;
-    return null;
-  });
-
-  const result:any=await app.predict(endpoint,payload);
-  const text=extractText(result?.data);
-  if(!text)throw new Error(`Space ${space} returned no transcription text.`);
-  return {text,endpoint,space};
-}
-
-export async function inspectNatlasSpace(language:SupportedLanguage){
-  const spaces=configuredAsrSpaces(language);
-  const checks=[];
-  for(const space of spaces){
-    try{
-      const app=await connectWithRetry(space);
-      const api:any=await app.view_api();
-      checks.push({space,ok:true,endpoints:Object.keys(api?.named_endpoints||{})});
-    }catch(error){
-      checks.push({space,ok:false,error:error instanceof Error?error.message:String(error)});
-    }
-  }
-  return {language,spaces:checks};
+  return {space,endpoints:Object.keys(api?.named_endpoints||{})};
 }
 
 export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLanguage){
-  const failures:string[]=[];
-  for(const space of configuredAsrSpaces(language)){
-    try{
-      return await transcribeOne(space,audio,language);
-    }catch(error){
-      failures.push(`${space}: ${error instanceof Error?error.message:String(error)}`);
-    }
+  const space=natlasSpaceId();
+  const app=await connectWithRetry(space);
+  const speechLanguage=speechLanguageFromUi(language);
+  const expectedModel=NATLAS_ASR_MODELS[language];
+
+  const result:any=await app.predict("/transcribe",[
+    handle_file(audio),
+    speechLanguage
+  ]);
+
+  const payload=extractJson(result?.data);
+  const text=String(payload?.text||"").trim();
+  const upstreamModel=String(payload?.model||"").trim();
+  const upstreamLanguage=String(payload?.language||"").trim().toLowerCase();
+
+  if(!text)throw new Error("ÌleraHer N-ATLAS Space returned no transcription text.");
+  if(upstreamModel!==expectedModel){
+    throw new Error(`ASR provenance check failed: expected ${expectedModel}, received ${upstreamModel||"no model id"}.`);
   }
-  throw new Error(`No configured N-ATLAS ASR Space is currently available. ${failures.join(" | ")}`);
+  if(upstreamLanguage&&upstreamLanguage!==speechLanguage){
+    throw new Error(`ASR language provenance check failed: expected ${speechLanguage}, received ${upstreamLanguage}.`);
+  }
+
+  return {
+    text,
+    model:upstreamModel,
+    language:speechLanguage,
+    provider:String(payload?.provider||"ileraher_zerogpu_asr"),
+    space
+  };
 }
 
 function textParamKind(p:any){
@@ -152,6 +92,23 @@ function textParamKind(p:any){
   return "other";
 }
 
+function extractText(value:any):string|undefined{
+  if(typeof value==="string"&&value.trim())return value.trim();
+  if(Array.isArray(value)){
+    for(const item of value){
+      const text=extractText(item);
+      if(text)return text;
+    }
+  }
+  if(value&&typeof value==="object"){
+    for(const key of ["text","response","output","result","value","data"]){
+      const text=extractText(value[key]);
+      if(text)return text;
+    }
+  }
+  return undefined;
+}
+
 export async function generateViaNatlasSpace(
   question:string,
   groundedContext:unknown,
@@ -159,39 +116,25 @@ export async function generateViaNatlasSpace(
   system:string
 ){
   const space=natlasLlmSpaceId();
-  if(!space){
-    throw new Error("N-ATLAS LLM Hugging Face Space is not configured. Set NATLAS_HF_LLM_SPACE to the project-owned ZeroGPU Space.");
-  }
+  if(!space)throw new Error("N-ATLAS LLM Hugging Face Space is not configured. Set NATLAS_HF_LLM_SPACE.");
 
   const app=await connectWithRetry(space);
   const api:any=await app.view_api();
   const entries=Object.entries(api?.named_endpoints||{}) as [string,any][];
-  const candidates=entries
-    .filter(([,info])=>Array.isArray(info?.parameters)&&info.parameters.some((p:any)=>{
-      const kind=textParamKind(p);
-      return kind==="text"||kind==="history";
-    }))
-    .sort((a,b)=>{
-      const score=(entry:[string,any])=>{
-        const params=entry[1]?.parameters||[];
-        const unsupportedRequired=params.filter((p:any)=>!p?.parameter_has_default&&textParamKind(p)==="other").length;
-        const textCount=params.filter((p:any)=>textParamKind(p)==="text").length;
-        return unsupportedRequired*10-Math.min(textCount,2);
-      };
-      return score(a)-score(b);
-    });
-
+  const candidates=entries.filter(([,info])=>Array.isArray(info?.parameters)&&info.parameters.some((p:any)=>{
+    const kind=textParamKind(p);
+    return kind==="text"||kind==="history";
+  }));
   if(!candidates.length)throw new Error(`N-ATLAS LLM Space ${space} exposes no usable text API endpoint.`);
 
   const [endpoint,info]=candidates[0];
   const fullPrompt=`${system}\n\nGROUNDED_CONTEXT:\n${JSON.stringify(groundedContext)}\n\nUSER_QUESTION:\n${question}`;
   let textUsed=false;
-
   const payload=(info.parameters||[]).map((p:any)=>{
     const kind=textParamKind(p);
     if(kind==="system")return system;
     if(kind==="history")return [];
-    if(kind==="language")return LANGUAGE_LABELS[language];
+    if(kind==="language")return speechLanguageFromUi(language);
     if(kind==="model")return "NCAIR1/N-ATLaS";
     if(kind==="task")return "Chat";
     if(kind==="temperature")return p?.parameter_has_default?p?.parameter_default:0.1;
