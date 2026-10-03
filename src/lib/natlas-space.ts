@@ -7,7 +7,7 @@ import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 const verifiedLanguages=new Set<string>();
-const ILERAHER_ASR_SPACE="Erioluwa24/ileraher-natlas-runtime";
+const ILERAHER_ASR_SPACE="Kolade1/ileraHer-natlas-runtime";
 
 export function natlasSpaceId(){
   return ILERAHER_ASR_SPACE;

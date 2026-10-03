@@ -73,3 +73,10 @@
 ## Exact continuation
 
 Secure sign-in as Erioluwa24 and Save profile is needed to inspect actual ZeroGPU eligibility and the four model access forms. Verify/obtain approved gated access for the identity owning the runtime read token; if a new token is needed, enter it only through secure server-secret settings. Do not send credentials in chat. Confirm compute before entering any Space secret. Then deploy the existing runtime, verify loaded revisions and memory, and perform four real production speech tests. Live ASR remains blocked; text generation and actual IVR calls remain unverified.
+
+
+## 2026-10-03: user-authorized runtime owner change
+
+User selected `Kolade1/ileraHer-natlas-runtime` as the new runtime target. Public Hub API confirms revision `0e1b110b350bfa8f567377f89410e24dec41ae8b`, SDK Gradio, stage NO_APP_FILE, requested hardware zero-a10g (current hardware null), files README.md and .gitattributes only. This is evidence of requested ZeroGPU, not a successfully allocated or tested runtime. Existing README uses Gradio 6.29.1 and Python 3.12; upload the prepared runtime README together with app.py, requirements.txt and packages.txt to align the pinned runtime versions.
+
+Application fixed Space ID and current provisioning documentation now target Kolade1. Earlier Erioluwa24 Space findings above are historical. The connected HF identity remains Erioluwa24, with read/job scopes and no repo-write scope. Cloud browser login previously rejected with CloudFront 403; do not retry rejected authentication or claim the user's local login authenticates the agent. No files or secrets have been uploaded to the new Space. Runtime gated access and all four real speech tests remain pending.

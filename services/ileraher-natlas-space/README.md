@@ -34,7 +34,7 @@ The caller must verify the returned `model` matches the expected model for the r
 
 ## Hosting gate and privacy
 
-Configure the **existing** `Erioluwa24/ileraher-natlas-runtime` only after its
+Configure the **existing** `Kolade1/ileraHer-natlas-runtime` only after its
 settings confirm free ZeroGPU eligibility. A free account requires a verified
 email and account age over 30 days, and may host at most two ZeroGPU Spaces.
 `suggested_hardware` is a UI suggestion, not a hardware allocation or entitlement.
