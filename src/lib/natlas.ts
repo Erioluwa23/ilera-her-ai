@@ -90,6 +90,12 @@ export class NatlasSpeechProvider implements SpeechProvider{
   const viaSpace=await transcribeViaNatlasSpace(audioPath,language);
   return{text:viaSpace.text,language,model,provider:"hf-space",natlas:true};
  }
+
+ async transcribeFile(audioPath:string,language:SupportedLanguage="en-NG"):Promise<Transcript>{
+  const model=NATLAS_ASR_MODELS[language];
+  const viaSpace=await transcribeViaNatlasSpace(audioPath,language);
+  return{text:viaSpace.text,language,model,provider:"hf-space",natlas:true};
+ }
 }
 
 async function chatRequest(url:string,key:string|undefined,model:string,system:string,question:string,groundedContext:unknown){
