@@ -1,13 +1,15 @@
 import {twiml,xmlEscape} from "@/lib/ivr";
-import {answerQuestion,evidenceFor} from "@/lib/knowledge";
+import {answerQuestion,evidenceFor,localizeHealthAnswer} from "@/lib/knowledge";
 import {normalizeLanguage} from "@/lib/languages";
-import {NatlasLLMProvider,NatlasSpeechProvider} from "@/lib/natlas";
+import {NatlasLLMProvider,NatlasSpeechProvider,huggingFaceToken} from "@/lib/natlas";
 
 function authHeader():Record<string,string>{
   const sid=process.env.TWILIO_ACCOUNT_SID,token=process.env.TWILIO_AUTH_TOKEN;
   if(!sid||!token)return {};
   return {Authorization:"Basic "+Buffer.from(sid+":"+token).toString("base64")};
 }
+
+const speechLocale={ "en-NG":"en-NG",yo:"yo-NG",ha:"ha-NG",ig:"ig-NG" } as const;
 
 export async function POST(req:Request){
   try{
@@ -23,16 +25,19 @@ export async function POST(req:Request){
 
     const transcript=await new NatlasSpeechProvider().transcribe(audio,language);
     const grounded=answerQuestion(transcript.text,language);
-    let answer=grounded.answer;
-    if(process.env.NATLAS_LLM_API_URL){
+    const localized=localizeHealthAnswer(grounded,language);
+    let answer=localized.answer;
+    let disclaimer=localized.disclaimer;
+
+    if(process.env.NATLAS_LLM_API_URL||huggingFaceToken()){
       try{
         const generated=await new NatlasLLMProvider().answer(transcript.text,evidenceFor(grounded),language);
         answer=generated.text;
       }catch{}
     }
 
-    const spoken=xmlEscape(answer+" "+grounded.disclaimer);
-    return twiml("<Say>"+spoken+"</Say><Hangup/>");
+    const spoken=xmlEscape(answer+" "+disclaimer);
+    return twiml(`<Say language="${speechLocale[language]}">${spoken}</Say><Hangup/>`);
   }catch{
     return twiml("<Say>We could not process your request. If your symptoms are severe or worrying, please seek medical care.</Say><Hangup/>");
   }
