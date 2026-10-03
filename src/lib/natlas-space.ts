@@ -4,10 +4,10 @@ import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
 
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
+const ILERAHER_ASR_SPACE="Erioluwa24/ileraher-natlas-runtime";
+
 export function natlasSpaceId(){
-  const space=(process.env.NATLAS_ASR_SPACE||process.env.NATLAS_HF_SPACE)?.trim();
-  if(!space)throw new Error("ÌleraHer N-ATLAS ASR Space is not configured. Set NATLAS_ASR_SPACE.");
-  return space;
+  return ILERAHER_ASR_SPACE;
 }
 
 export function natlasLlmSpaceId(){
