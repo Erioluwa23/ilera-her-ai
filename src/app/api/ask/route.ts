@@ -11,22 +11,31 @@ export async function POST(req:Request){
     const question=body.question.trim().slice(0,1200);
     const language=normalizeLanguage(typeof body.language==="string"?body.language:"en-NG");
     const grounded=answerQuestion(question,language);
-
+    const localized=localizeHealthAnswer(grounded,language);
 
     try{
       const generated=await new NatlasLLMProvider().answer(question,evidenceFor(grounded),language);
       return Response.json({
-        ...localizeHealthAnswer(grounded,language),
+        ...localized,
         answer:generated.text,
         language,
         model:"n-atlas",
+        natlasAvailable:true,
         generationModel:generated.model,
         generationProvider:generated.provider
       });
     }catch(error){
       const message=error instanceof Error?error.message:"N-ATLAS inference failed.";
       console.error("N-ATLAS LLM:",error);
-      return Response.json({error:message,language,model:"n-atlas-unavailable"},{status:503});
+      return Response.json({
+        ...localized,
+        language,
+        model:"curated",
+        natlasAvailable:false,
+        natlasError:message,
+        generationModel:null,
+        generationProvider:"curated"
+      });
     }
   }catch{
     return Response.json({error:"Invalid request."},{status:400});
