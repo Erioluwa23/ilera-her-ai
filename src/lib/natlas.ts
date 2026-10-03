@@ -18,7 +18,10 @@ export type LlmAnswer={
   natlas:true;
 };
 
-export interface SpeechProvider{transcribe(audio:Blob,language?:SupportedLanguage):Promise<Transcript>}
+export interface SpeechProvider{
+  transcribe(audio:Blob,language?:SupportedLanguage):Promise<Transcript>;
+  transcribeFile(audioPath:string,language?:SupportedLanguage):Promise<Transcript>;
+}
 
 export function huggingFaceToken(){
   const fromEnv=process.env.HF_TOKEN||process.env.HUGGINGFACE_API_KEY||process.env.HUGGINGFACE_TOKEN;
@@ -66,22 +69,25 @@ export class NatlasSpeechProvider implements SpeechProvider{
   const url=languageEndpoint(language);
   const endpointKey=process.env.NATLAS_ASR_API_KEY||process.env.NATLAS_API_KEY;
 
-  if(url){
-    const body=new FormData();
-    body.append("audio",audio,"speech.webm");
-    body.append("language",language);
-    body.append("model",model);
-    const headers:Record<string,string>={};
-    if(endpointKey)headers.Authorization=`Bearer ${endpointKey}`;
-    const res=await fetch(url,{method:"POST",headers,body});
-    if(!res.ok)throw new Error(`N-ATLAS ASR endpoint failed (${res.status}): ${await parseError(res)}`);
-    const data=await res.json();
-    const text=data?.text??data?.transcription??data?.result?.text;
-    if(typeof text!=="string"||!text.trim())throw new Error("Invalid N-ATLAS ASR response");
-    return{text:text.trim(),language,model,provider:"self-hosted",natlas:true};
-  }
+  if(!url)throw new Error("Blob transcription requires the app route to persist audio first.");
 
-  const viaSpace=await transcribeViaNatlasSpace(audio,language);
+  const body=new FormData();
+  body.append("audio",audio,"speech.webm");
+  body.append("language",language);
+  body.append("model",model);
+  const headers:Record<string,string>={};
+  if(endpointKey)headers.Authorization=`Bearer ${endpointKey}`;
+  const res=await fetch(url,{method:"POST",headers,body});
+  if(!res.ok)throw new Error(`N-ATLAS ASR endpoint failed (${res.status}): ${await parseError(res)}`);
+  const data=await res.json();
+  const text=data?.text??data?.transcription??data?.result?.text;
+  if(typeof text!=="string"||!text.trim())throw new Error("Invalid N-ATLAS ASR response");
+  return{text:text.trim(),language,model,provider:"self-hosted",natlas:true};
+ }
+
+ async transcribeFile(audioPath:string,language:SupportedLanguage="en-NG"):Promise<Transcript>{
+  const model=NATLAS_ASR_MODELS[language];
+  const viaSpace=await transcribeViaNatlasSpace(audioPath,language);
   return{text:viaSpace.text,language,model,provider:"hf-space",natlas:true};
  }
 }
