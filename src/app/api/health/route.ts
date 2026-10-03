@@ -1,16 +1,10 @@
 import {NATLAS_ASR_MODELS} from "@/lib/languages";
 import {huggingFaceToken} from "@/lib/natlas";
-import {natlasSpaceId} from "@/lib/natlas-space";
+import {inspectNatlasSpace,natlasSpaceId} from "@/lib/natlas-space";
 
 export async function GET(){
-  const customAsrConfigured=Boolean(
-    process.env.NATLAS_ASR_API_URL||
-    process.env.NATLAS_ASR_EN_NG_URL||
-    process.env.NATLAS_ASR_YO_URL||
-    process.env.NATLAS_ASR_HA_URL||
-    process.env.NATLAS_ASR_IG_URL||
-    process.env.NATLAS_API_URL
-  );
+  let runtimeStatus:{ready:boolean;[key:string]:unknown};
+  try{runtimeStatus=await inspectNatlasSpace()}catch{runtimeStatus={reachable:false,gatedModelsAccessible:null,inferenceTested:false,ready:false}}
   return Response.json({
     ok:true,
     service:"ileraher-ai",
@@ -20,7 +14,9 @@ export async function GET(){
       asrConfigured:true,
       asrSpaceConfigured:true,
       asrSpace:natlasSpaceId(),
-      asrMode:customAsrConfigured?"custom-endpoint":"fixed-gradio-space",
+      asrMode:"fixed-gradio-space",
+      asrReady:runtimeStatus.ready,
+      runtime:runtimeStatus,
       llmConfigured:Boolean(process.env.NATLAS_LLM_API_URL||process.env.NATLAS_HF_LLM_SPACE),
       llmMode:process.env.NATLAS_LLM_API_URL?"custom-endpoint":process.env.NATLAS_HF_LLM_SPACE?"huggingface-space":"curated-fallback",
       llmModel:process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS",

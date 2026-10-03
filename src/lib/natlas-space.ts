@@ -1,9 +1,12 @@
 import {Client,handle_file} from "@gradio/client";
+import {huggingFaceToken} from "@/lib/hf-token";
+import {AsrError,validateAudio} from "@/lib/asr-contract";
 import type {SupportedLanguage} from "@/lib/natlas";
 import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
 
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
+const verifiedLanguages=new Set<string>();
 const ILERAHER_ASR_SPACE="Erioluwa24/ileraher-natlas-runtime";
 
 export function natlasSpaceId(){
@@ -14,67 +17,110 @@ export function natlasLlmSpaceId(){
   return process.env.NATLAS_HF_LLM_SPACE?.trim()||null;
 }
 
-async function connectWithRetry(space:string){
-  let lastError:unknown;
-  for(let attempt=0;attempt<3;attempt++){
-    try{
-      return await Client.connect(space);
-    }catch(error){
-      lastError=error;
-      if(attempt<2)await sleep(attempt===0?2500:7000);
-    }
-  }
-  const message=lastError instanceof Error?lastError.message:String(lastError);
-  throw new Error(`N-ATLAS Hugging Face Space ${space} is unavailable after retries: ${message}`);
+function clientOptions(){
+  const token=huggingFaceToken();
+  if(token&&!token.startsWith("hf_"))throw new AsrError("ASR_AUTH",503,"Invalid server Hugging Face credential format.");
+  return token?{token:token as `hf_${string}`,record_history:false}:{record_history:false};
 }
 
-function extractJson(value:any){
-  if(typeof value==="string"){
-    try{return JSON.parse(value)}catch{return {text:value}}
+async function connectWithRetry(space:string){
+  // LLM connection behavior remains separate from ASR.
+  let lastError:unknown;
+  for(let attempt=0;attempt<3;attempt++){
+    try{return await Client.connect(space,clientOptions())}catch(error){
+      lastError=error;if(attempt<2)await sleep(attempt===0?2500:7000);
+    }
   }
-  if(Array.isArray(value)&&value.length===1)return extractJson(value[0]);
-  if(value&&typeof value==="object"&&"data" in value)return extractJson(value.data);
-  return value;
+  throw lastError;
+}
+
+export function classifyAsrError(error:unknown):AsrError{
+  if(error instanceof AsrError)return error;
+  const message=String(error instanceof Error?error.message:error).toLowerCase();
+  if(/401|403|unauthorized|forbidden|credential|gated/.test(message))return new AsrError("ASR_AUTH",503,"ASR runtime or model access is not authorized.");
+  if(/quota|429|rate limit/.test(message))return new AsrError("ASR_QUOTA",429,"ASR compute quota is exhausted. Please try later.");
+  if(/building|starting|sleeping|no app|not found|404/.test(message))return new AsrError("ASR_STARTING",503,"ASR compute runtime is not ready.");
+  return new AsrError("ASR_UPSTREAM",502,"ASR runtime could not complete transcription.");
+}
+
+export function parseAsrResponse(value:unknown,language:SupportedLanguage){
+  if(Array.isArray(value)&&value.length===1)value=value[0];
+  if(typeof value==="string"){
+    try{value=JSON.parse(value)}catch{throw new AsrError("ASR_PROVENANCE",502,"ASR returned malformed JSON.")}
+  }
+  if(!value||typeof value!=="object"||Array.isArray(value))throw new AsrError("ASR_PROVENANCE",502,"ASR returned an invalid response.");
+  const payload=value as Record<string,unknown>;
+  const expectedLanguage=speechLanguageFromUi(language);
+  if(payload.model!==NATLAS_ASR_MODELS[language]||payload.language!==expectedLanguage||payload.provider!=="ileraher_zerogpu_asr"){
+    throw new AsrError("ASR_PROVENANCE",502,"ASR model, language or provider verification failed.");
+  }
+  if(typeof payload.text!=="string"||!payload.text.trim())throw new AsrError("ASR_EMPTY",502,"ASR returned no usable transcription.");
+  return {text:payload.text.trim(),model:payload.model as string,language:expectedLanguage,provider:payload.provider as string,space:natlasSpaceId()};
+}
+
+async function withAsrClient<T>(operation:(app:Client,signal:AbortSignal)=>Promise<T>,signal?:AbortSignal,timeoutMs=90000):Promise<T>{
+  const controller=new AbortController();
+  let app:Client|undefined;
+  const cancel=()=>controller.abort(signal?.reason);
+  signal?.addEventListener("abort",cancel,{once:true});
+  if(signal?.aborted)cancel();
+  const timer=setTimeout(()=>controller.abort(new AsrError("ASR_TIMEOUT",504,"ASR runtime timed out.")),timeoutMs);
+  let rejectAbort:(e:unknown)=>void=()=>{};
+  const aborted=new Promise<never>((_,reject)=>{rejectAbort=reject});
+  const onAbort=()=>{app?.close();rejectAbort(controller.signal.reason instanceof AsrError?controller.signal.reason:new AsrError("ASR_CANCELLED",499,"Transcription cancelled."))};
+  controller.signal.addEventListener("abort",onAbort,{once:true});
+  const task=(async()=>{
+    if(controller.signal.aborted)throw new AsrError("ASR_CANCELLED",499,"Transcription cancelled.");
+    app=await Client.connect(natlasSpaceId(),clientOptions());
+    if(controller.signal.aborted){app.close();throw controller.signal.reason}
+    const clientFetch=app.fetch.bind(app);
+    app.fetch=(input,init)=>clientFetch(input,{...init,signal:controller.signal});
+    return operation(app,controller.signal);
+  })();
+  try{return await Promise.race([task,aborted])}catch(error){throw classifyAsrError(error)}finally{
+    clearTimeout(timer);signal?.removeEventListener("abort",cancel);controller.signal.removeEventListener("abort",onAbort);app?.close();
+  }
 }
 
 export async function inspectNatlasSpace(){
-  const space=natlasSpaceId();
-  const app=await connectWithRetry(space);
-  const api:any=await app.view_api();
-  return {space,endpoints:Object.keys(api?.named_endpoints||{})};
+  const metadata=await fetch(`https://huggingface.co/api/spaces/${natlasSpaceId()}`,{cache:"no-store",signal:AbortSignal.timeout(8000),headers:huggingFaceToken()?{Authorization:`Bearer ${huggingFaceToken()}`}:{}});
+  if(!metadata.ok)throw new AsrError("ASR_STARTING",503,"ASR Space metadata is unavailable.");
+  const info=await metadata.json();
+  if(info.sdk!=="gradio")return {space:natlasSpaceId(),sdk:info.sdk,stage:info.runtime?.stage,reachable:false,gatedModelsAccessible:false,inferenceTested:false,ready:false};
+  return withAsrClient(async app=>{
+    const api=await app.view_api();
+    const reachable=Boolean(api.named_endpoints?.["/transcribe"]);
+    let gatedModelsAccessible=false,modelsLoaded=false;
+    if(api.named_endpoints?.["/status"]){
+      const result=await app.predict("/status",[]);
+      const status=Array.isArray(result.data)?result.data[0]:result.data;
+      if(status&&typeof status==="object"){
+        const verified=status as Record<string,unknown>;
+        gatedModelsAccessible=verified.provider==="ileraher_zerogpu_asr"&&verified.gatedModelsAccessible===true;
+        modelsLoaded=verified.modelsLoaded===true;
+      }
+    }
+    const inferenceTested=verifiedLanguages.size===4;
+    return {space:natlasSpaceId(),sdk:info.sdk,stage:info.runtime?.stage,reachable,gatedModelsAccessible,modelsLoaded,inferenceTested,verifiedLanguages:[...verifiedLanguages],ready:reachable&&gatedModelsAccessible&&modelsLoaded&&inferenceTested};
+  },undefined,8000);
 }
 
-export async function transcribeViaNatlasSpace(audioPath:string,language:SupportedLanguage){
-  const space=natlasSpaceId();
-  const app=await connectWithRetry(space);
-  const speechLanguage=speechLanguageFromUi(language);
-  const expectedModel=NATLAS_ASR_MODELS[language];
-
-  const result:any=await app.predict("/transcribe",[
-    handle_file(audioPath),
-    speechLanguage
-  ]);
-
-  const payload=extractJson(result?.data);
-  const text=String(payload?.text||"").trim();
-  const upstreamModel=String(payload?.model||"").trim();
-  const upstreamLanguage=String(payload?.language||"").trim().toLowerCase();
-
-  if(!text)throw new Error("ÌleraHer N-ATLAS Space returned no transcription text.");
-  if(upstreamModel!==expectedModel){
-    throw new Error(`ASR provenance check failed: expected ${expectedModel}, received ${upstreamModel||"no model id"}.`);
-  }
-  if(upstreamLanguage&&upstreamLanguage!==speechLanguage){
-    throw new Error(`ASR language provenance check failed: expected ${speechLanguage}, received ${upstreamLanguage}.`);
-  }
-
-  return {
-    text,
-    model:upstreamModel,
-    language:speechLanguage,
-    provider:String(payload?.provider||"ileraher_gradio_asr"),
-    space
-  };
+export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLanguage,signal?:AbortSignal){
+  await validateAudio(audio);
+  return withAsrClient(async(app,abortSignal)=>{
+    const job=app.submit("/transcribe",[handle_file(audio),speechLanguageFromUi(language)]);
+    const cancel=()=>{void job.cancel().catch(()=>{});job.close_stream()};
+    abortSignal.addEventListener("abort",cancel,{once:true});
+    try{
+      for await(const event of job){
+        if(event.type==="data"){
+          const response=parseAsrResponse(event.data,language);verifiedLanguages.add(response.language);return response;
+        }
+        if(event.type==="status"&&event.stage==="error")throw new Error(String(event.message||event.code||"Upstream failure"));
+      }
+      throw new AsrError("ASR_EMPTY",502,"ASR returned no result.");
+    }finally{abortSignal.removeEventListener("abort",cancel);job.close_stream()}
+  },signal);
 }
 
 function textParamKind(p:any){

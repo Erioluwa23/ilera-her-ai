@@ -16,9 +16,10 @@ export async function GET(){
 
   const results=await Promise.all(MODELS.map(async model=>{
     try{
-      const r=await fetch("https://huggingface.co/api/models/"+encodeURIComponent(model),{
+      const r=await fetch(`https://huggingface.co/${model}/resolve/main/config.json`,{
         headers:{Authorization:`Bearer ${key}`},
-        cache:"no-store"
+        cache:"no-store",
+        signal:AbortSignal.timeout(8000)
       });
       return {model,accessible:r.ok,status:r.status};
     }catch{

@@ -3,14 +3,12 @@ services:
     name: ilera-her-ai
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: NATLAS_API_URL
-        sync: false
-      - key: NATLAS_API_KEY
+      - key: HF_TOKEN
         sync: false

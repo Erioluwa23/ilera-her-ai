@@ -2,63 +2,46 @@
 import {useRef,useState} from "react";
 import {LANGUAGE_OPTIONS,IlaraLanguage} from "@/lib/languages";
 
-const SPEECH_LANG:Record<IlaraLanguage,string>={"en-NG":"en-NG",yo:"yo-NG",ha:"ha-NG",ig:"ig-NG"};
+import {useVoiceRecording,speakResponse} from "@/lib/use-voice-recording";
 
 export default function LiteAsk(){
-  const rec=useRef<MediaRecorder|null>(null),chunks=useRef<Blob[]>([]);
+  const voice=useVoiceRecording();
+  const requesting=useRef(false);
+  const [answerLanguage,setAnswerLanguage]=useState<IlaraLanguage>("en-NG");
   const [language,setLanguage]=useState<IlaraLanguage>("en-NG");
   const [question,setQuestion]=useState("");
   const [answer,setAnswer]=useState("");
   const [status,setStatus]=useState("");
   const [busy,setBusy]=useState(false);
-  const [recording,setRecording]=useState(false);
+  const {recording}=voice;
 
-  function speak(text:string){
-    if(typeof window==="undefined"||!("speechSynthesis" in window))return;
-    window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    u.lang=SPEECH_LANG[language];
-    u.rate=.95;
-    window.speechSynthesis.speak(u);
+  function speak(text:string,code:IlaraLanguage){
+    if(!speakResponse(text,code))setStatus("Speech playback for this language is unavailable on this device. Read the response below.");
   }
-
-  async function ask(text:string){
-    if(text.trim().length<3)return;
-    setBusy(true);setStatus("");
+  async function ask(text:string,code:IlaraLanguage=language,signal?:AbortSignal){
+    if(text.trim().length<3||requesting.current)return;
+    requesting.current=true;setBusy(true);setStatus("");
     try{
-      const r=await fetch("/api/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({question:text,language})});
+      const r=await fetch("/api/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({question:text,language:code}),signal});
       const d=await r.json();
-      const value=d.answer||d.error||"No answer available.";
-      setAnswer(value);
-      if(r.ok)speak(value);
-    }finally{setBusy(false)}
+      if(!r.ok)throw new Error(d.error||"Health response failed");
+      if(signal?.aborted)return;
+      setAnswer(d.answer);setAnswerLanguage(code);speak(d.answer,code);
+    }catch(error){if(!signal?.aborted)setStatus(error instanceof Error?error.message:"Health response failed.")}
+    finally{requesting.current=false;setBusy(false)}
   }
-
   async function startVoice(){
-    try{
-      setAnswer("");setStatus("");
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      chunks.current=[];
-      const recorder=new MediaRecorder(stream);
-      rec.current=recorder;
-      recorder.ondataavailable=e=>{if(e.data.size>0)chunks.current.push(e.data)};
-      recorder.onstop=async()=>{
-        stream.getTracks().forEach(t=>t.stop());
-        setRecording(false);setStatus("Transcribing…");
-        const data=new FormData();
-        data.append("audio",new Blob(chunks.current,{type:recorder.mimeType}),"voice.webm");
-        data.append("language",language);
-        try{
-          const r=await fetch("/api/transcribe",{method:"POST",body:data});
-          const d=await r.json();
-          if(!r.ok)throw new Error(d.error||"Transcription failed");
-          setQuestion(d.text);
-          setStatus("");
-          await ask(d.text);
-        }catch(e){setStatus(e instanceof Error?e.message:"Voice unavailable.")}
-      };
-      recorder.start();setRecording(true);
-    }catch{setStatus("Microphone unavailable. Type your question below.")}
+    if(requesting.current)return;
+    setAnswer("");setStatus("");
+    await voice.start(language,async(audio,filename,code,signal)=>{
+      setStatus("Transcribing…");
+      const data=new FormData();data.append("audio",audio,filename);data.append("language",code);
+      const r=await fetch("/api/transcribe",{method:"POST",body:data,signal});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||"Transcription failed");
+      if(signal.aborted)return;
+      setQuestion(d.text);setStatus("");await ask(d.text,code,signal);
+    });
   }
 
   return <main className="lite liteVoice">
@@ -68,15 +51,16 @@ export default function LiteAsk(){
       <h1>Speak first. Type only if you need to.</h1>
       <p>Minimal mobile interface with the same four-language N-ATLAS voice path.</p>
     </div>
-    <label>Language<select value={language} onChange={e=>setLanguage(e.target.value as IlaraLanguage)}>{LANGUAGE_OPTIONS.map(x=><option key={x.code} value={x.code}>{x.label}</option>)}</select></label>
-    <button className={recording?"liteMic recording":"liteMic"} type="button" onClick={recording?()=>rec.current?.stop():startVoice}>{recording?"■ Stop and send":"🎙️ Tap to speak"}</button>
-    {status&&<p className="liteStatus">{status}</p>}
+    <label>Language<select disabled={busy||voice.busy} value={language} onChange={e=>setLanguage(e.target.value as IlaraLanguage)}>{LANGUAGE_OPTIONS.map(x=><option key={x.code} value={x.code}>{x.label}</option>)}</select></label>
+    <button className={recording?"liteMic recording":"liteMic"} type="button" disabled={(busy||voice.busy)&&!recording} onClick={recording?voice.stop:startVoice}>{recording?"■ Stop and send":"🎙️ Tap to speak"}</button>
+    {(voice.error||status)&&<p className="liteStatus">{voice.error||status}</p>}
+    {question&&<p className="liteStatus">Transcript / question: {question}</p>}
     <details>
       <summary>Prefer to type?</summary>
       <label>Your question<textarea rows={3} value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Type a menstrual-health question"/></label>
-      <button className="btn" onClick={()=>ask(question)} disabled={busy}>{busy?"Checking…":"Ask Ìlera"}</button>
+      <button className="btn" onClick={()=>ask(question)} disabled={busy||voice.busy}>{busy?"Checking…":"Ask Ìlera"}</button>
     </details>
-    {answer&&<article className="liteAnswer"><p>{answer}</p><button className="secondaryBtn" type="button" onClick={()=>speak(answer)}>🔊 Hear response</button></article>}
+    {answer&&<article className="liteAnswer"><p>{answer}</p><button className="secondaryBtn" type="button" onClick={()=>speak(answer,answerLanguage)}>🔊 Hear response</button></article>}
     <small>Educational health guidance only. A qualified healthcare professional should confirm suspected conditions.</small>
   </main>;
 }

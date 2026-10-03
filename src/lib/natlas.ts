@@ -1,13 +1,12 @@
-import {existsSync,readFileSync} from "node:fs";
-import {join} from "node:path";
-import {NATLAS_ASR_MODELS} from "@/lib/languages";
+import {readFile} from "node:fs/promises";
+export {huggingFaceToken} from "@/lib/hf-token";
 import {generateViaNatlasSpace,transcribeViaNatlasSpace} from "@/lib/natlas-space";
 export type SupportedLanguage="en-NG"|"yo"|"ha"|"ig";
 export type Transcript={
   text:string;
-  language?:SupportedLanguage;
-  model?:string;
-  provider?:"self-hosted"|"hf-space";
+  language:string;
+  model:string;
+  provider:string;
   natlas:true;
 };
 
@@ -23,37 +22,6 @@ export interface SpeechProvider{
   transcribeFile(audioPath:string,language?:SupportedLanguage):Promise<Transcript>;
 }
 
-export function huggingFaceToken(){
-  const fromEnv=process.env.HF_TOKEN||process.env.HUGGINGFACE_API_KEY||process.env.HUGGINGFACE_TOKEN;
-  if(fromEnv?.trim())return fromEnv.trim();
-
-  const secretFileCandidates=[
-    "/etc/secrets/HF_TOKEN",
-    join(process.cwd(),"HF_TOKEN")
-  ];
-
-  for(const filePath of secretFileCandidates){
-    try{
-      if(existsSync(filePath)){
-        const value=readFileSync(filePath,"utf8").trim();
-        if(value)return value;
-      }
-    }catch{}
-  }
-
-  return undefined;
-}
-
-function languageEndpoint(language:SupportedLanguage){
-  const specific:Record<SupportedLanguage,string|undefined>={
-    "en-NG":process.env.NATLAS_ASR_EN_NG_URL,
-    yo:process.env.NATLAS_ASR_YO_URL,
-    ha:process.env.NATLAS_ASR_HA_URL,
-    ig:process.env.NATLAS_ASR_IG_URL
-  };
-  return specific[language]||process.env.NATLAS_ASR_API_URL||process.env.NATLAS_API_URL;
-}
-
 async function parseError(res:Response){
   try{
     const data=await res.clone().json();
@@ -64,37 +32,13 @@ async function parseError(res:Response){
 }
 
 export class NatlasSpeechProvider implements SpeechProvider{
- async transcribe(audio:Blob,language:SupportedLanguage="en-NG"):Promise<Transcript>{
-  const model=NATLAS_ASR_MODELS[language];
-  const url=languageEndpoint(language);
-  const endpointKey=process.env.NATLAS_ASR_API_KEY||process.env.NATLAS_API_KEY;
-
-  if(!url)throw new Error("Blob transcription requires the app route to persist audio first.");
-
-  const body=new FormData();
-  body.append("audio",audio,"speech.webm");
-  body.append("language",language);
-  body.append("model",model);
-  const headers:Record<string,string>={};
-  if(endpointKey)headers.Authorization=`Bearer ${endpointKey}`;
-  const res=await fetch(url,{method:"POST",headers,body});
-  if(!res.ok)throw new Error(`N-ATLAS ASR endpoint failed (${res.status}): ${await parseError(res)}`);
-  const data=await res.json();
-  const text=data?.text??data?.transcription??data?.result?.text;
-  if(typeof text!=="string"||!text.trim())throw new Error("Invalid N-ATLAS ASR response");
-  return{text:text.trim(),language,model,provider:"self-hosted",natlas:true};
+ async transcribe(audio:Blob,language:SupportedLanguage="en-NG",signal?:AbortSignal):Promise<Transcript>{
+  const result=await transcribeViaNatlasSpace(audio,language,signal);
+  return {...result,natlas:true};
  }
-
- async transcribeFile(audioPath:string,language:SupportedLanguage="en-NG"):Promise<Transcript>{
-  const model=NATLAS_ASR_MODELS[language];
-  const viaSpace=await transcribeViaNatlasSpace(audioPath,language);
-  return{text:viaSpace.text,language,model,provider:"hf-space",natlas:true};
- }
-
- async transcribeFile(audioPath:string,language:SupportedLanguage="en-NG"):Promise<Transcript>{
-  const model=NATLAS_ASR_MODELS[language];
-  const viaSpace=await transcribeViaNatlasSpace(audioPath,language);
-  return{text:viaSpace.text,language,model,provider:"hf-space",natlas:true};
+ async transcribeFile(audioPath:string,language:SupportedLanguage="en-NG",signal?:AbortSignal):Promise<Transcript>{
+  // Legacy server callers still work; send the bytes rather than a local path.
+  return this.transcribe(new Blob([new Uint8Array(await readFile(audioPath))]),language,signal);
  }
 }
 

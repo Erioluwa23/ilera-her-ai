@@ -6,5 +6,5 @@ describe("N-ATLAS language routing",()=>{
   it("maps Yoruba to its ASR model",()=>expect(NATLAS_ASR_MODELS.yo).toBe("NCAIR1/Yoruba-ASR"));
   it("maps Hausa to its ASR model",()=>expect(NATLAS_ASR_MODELS.ha).toBe("NCAIR1/Hausa-ASR"));
   it("maps Igbo to its ASR model",()=>expect(NATLAS_ASR_MODELS.ig).toBe("NCAIR1/Igbo-ASR"));
-  it("falls back safely to Nigerian English",()=>expect(normalizeLanguage("xx")).toBe("en-NG"));
+  it("rejects unsupported languages",()=>expect(()=>normalizeLanguage("xx")).toThrow("Unsupported language"));
 });

@@ -45,8 +45,10 @@ export function normalizeLanguage(value?:string|null):IlaraLanguage{
 }
 
 export function normalizeSpeechLanguage(value?:string|null):SpeechLanguage{
-  const key=(value||"english").trim().toLowerCase();
-  return LANGUAGE_ALIASES[key]||"english";
+  const key=(value??"english").trim().toLowerCase();
+  const language=LANGUAGE_ALIASES[key];
+  if(!language)throw new RangeError("Unsupported language.");
+  return language;
 }
 
 export function speechLanguageFromUi(code:IlaraLanguage):SpeechLanguage{
