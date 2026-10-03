@@ -5,8 +5,8 @@ import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 export function natlasSpaceId(){
-  const space=process.env.NATLAS_HF_SPACE?.trim();
-  if(!space)throw new Error("ÌleraHer N-ATLAS Hugging Face Space is not configured. Set NATLAS_HF_SPACE.");
+  const space=(process.env.NATLAS_ASR_SPACE||process.env.NATLAS_HF_SPACE)?.trim();
+  if(!space)throw new Error("ÌleraHer N-ATLAS ASR Space is not configured. Set NATLAS_ASR_SPACE.");
   return space;
 }
 
@@ -44,14 +44,14 @@ export async function inspectNatlasSpace(){
   return {space,endpoints:Object.keys(api?.named_endpoints||{})};
 }
 
-export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLanguage){
+export async function transcribeViaNatlasSpace(audioPath:string,language:SupportedLanguage){
   const space=natlasSpaceId();
   const app=await connectWithRetry(space);
   const speechLanguage=speechLanguageFromUi(language);
   const expectedModel=NATLAS_ASR_MODELS[language];
 
   const result:any=await app.predict("/transcribe",[
-    handle_file(audio),
+    handle_file(audioPath),
     speechLanguage
   ]);
 
@@ -72,7 +72,7 @@ export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLang
     text,
     model:upstreamModel,
     language:speechLanguage,
-    provider:String(payload?.provider||"ileraher_zerogpu_asr"),
+    provider:String(payload?.provider||"ileraher_gradio_asr"),
     space
   };
 }
