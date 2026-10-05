@@ -13,6 +13,7 @@ describe("structured provenance",()=>{
   });
   it.each(["plain text","{",{}, {...payload,model:undefined},{...payload,model:"openai/whisper"},{...payload,language:undefined},{...payload,language:"yoruba"},{...payload,provider:undefined},{...payload,text:" "},{...payload,text:15}])("rejects unverified responses",input=>expect(()=>parseAsrResponse(input,"en-NG")).toThrow());
   it.each([["401 unauthorized","ASR_AUTH"],["403 gated","ASR_AUTH"],["429 quota exceeded","ASR_QUOTA"],["Space building","ASR_STARTING"],["server error","ASR_UPSTREAM"]])("classifies %s",(error,code)=>expect(classifyAsrError(new Error(error)).code).toBe(code));
+  it("classifies structured Gradio quota errors",()=>expect(classifyAsrError({message:"GPU quota exceeded"}).code).toBe("ASR_QUOTA"));
   it("never returns upstream secret-bearing errors",()=>expect(classifyAsrError(new Error("server error with secret-health-text")).message).not.toContain("secret-health-text"));
 });
 describe("Gradio byte upload and lifecycle",()=>{

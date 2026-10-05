@@ -1,3 +1,4 @@
+import { AsrError } from "@/lib/asr-contract";
 import { synthesizeViaYarnSpace } from "@/lib/natlas-space";
 import { normalizeLanguage } from "@/lib/languages";
 
@@ -57,7 +58,8 @@ export async function POST(req: Request) {
     }
     if (!bytes) throw new Error("Empty audio");
     return new Response(Buffer.concat(audio), { headers: { "content-type": type, "cache-control": "private, no-store" } });
-  } catch {
+  } catch (error) {
+    if (error instanceof AsrError && error.code === "ASR_QUOTA") return Response.json({ error: "Speech compute quota is exhausted. Please try again later." }, { status: 429 });
     return Response.json({ error: "Reply audio could not be saved. Try again later or use device playback." }, { status: 502 });
   }
 }

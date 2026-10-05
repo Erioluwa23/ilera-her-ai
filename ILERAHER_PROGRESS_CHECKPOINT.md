@@ -1,3 +1,15 @@
+## 2026-10-05 — spoken replies implementation
+
+- Runtime is deployed to the existing free ZeroGPU Space `Kolade1/ileraHer-natlas-runtime`; latest runtime revision `99ddb12dcc1d2ed20aebfadc4d62c5ab6295e7bf` is RUNNING.
+- `/answer` uses gated `NCAIR1/N-ATLaS`, strict provenance, reviewed context and bounded prior dialogue. `/synthesize` uses `saheedniyi/YarnGPT2b` with the author's original WavTokenizer checkpoint, SHA256 validation, vendored decoder/tokenizer source and license notices. Both initialize separately from ASR at startup.
+- The app defaults to the fixed owned runtime for answer generation and saved WAV replies. Browser voice chats retain replies in their existing device storage and support replay/download/share. Existing configured external TTS remains an explicit override.
+- The upload workflow now triggers for runtime changes on main. Uploads include the complete source dependencies. Published content was audited against local files after correcting an initially incomplete transfer.
+- Runtime readiness now uses JSON text, fixing Gradio's queue-disabled Python-repr status response. App health correctly reports all four ASR models loaded and YarnGPT2b/decoder loaded.
+- N-ATLaS is not loaded: runtime reports `llmFailure=GatedRepoError`. Kolade1 must obtain approved access to https://huggingface.co/NCAIR1/N-ATLaS and ensure the Space's read-only HF_TOKEN covers that repository, then restart the Space. Do not change GitHub HF_SPACE_WRITE_TOKEN or request token values in chat. Until then the app returns its source-grounded curated answers, labelled curated.
+- Live `/api/voice/audio` returned verified 24 kHz WAV audio for Yoruba (82,604 bytes, 1.72 s) and Igbo (32,684 bytes, 0.68 s). The runtime's public English synthesis endpoint also returned an audio file with YarnGPT2b provenance. Subsequent Render English/Hausa attempts returned 502; additional diagnosis remains necessary. These checks verify audio generation/transport, not pronunciation or clinical translation accuracy.
+- Added a repetition guard for heavily repeated ASR text, and structured Gradio quota classification with an explicit 429 audio response.
+- Validation: 128 JavaScript tests, 6 Python runtime boundary tests, production build passed. GitHub CI and runtime upload passed at 570a817. ESLint remains unavailable because this existing repo has no ESLint v9 config. No paid infrastructure was enabled.
+
 # ÌleraHer ASR repair checkpoint — 2026-10-03
 
 ## Inspected state

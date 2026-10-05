@@ -23,7 +23,8 @@ function clientOptions(){
 
 export function classifyAsrError(error:unknown):AsrError{
   if(error instanceof AsrError)return error;
-  const message=String(error instanceof Error?error.message:error).toLowerCase();
+  const detail=error && typeof error==="object" && "message" in error ? (error as {message:unknown}).message : error;
+  const message=String(detail).toLowerCase();
   if(/401|403|unauthorized|forbidden|credential|gated/.test(message))return new AsrError("ASR_AUTH",503,"ASR runtime or model access is not authorized.");
   if(/quota|429|rate limit/.test(message))return new AsrError("ASR_QUOTA",429,"ASR compute quota is exhausted. Please try later.");
   if(/building|starting|sleeping|no app|not found|404/.test(message))return new AsrError("ASR_STARTING",503,"ASR compute runtime is not ready.");

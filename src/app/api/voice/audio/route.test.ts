@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { synthesizeViaYarnSpace } from "@/lib/natlas-space";
 vi.mock("@/lib/natlas-space",()=>({synthesizeViaYarnSpace:vi.fn()}));
+import { AsrError } from "@/lib/asr-contract";
 import { POST } from "./route";
 const request = (body: unknown, origin="https://app") => new Request("https://app/api/voice/audio", {method:"POST",headers:{origin},body:JSON.stringify(body)});
 describe("saved reply audio", () => {
@@ -26,6 +27,11 @@ describe("saved reply audio", () => {
     const response = await POST(request({text:"Ẹ káàárọ̀",language:"yo",url:"https://evil.example"}));
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(String(fetcher.mock.calls[0][0])).toBe("https://speech.example/synthesize");
+  });
+  it("reports the shared GPU quota clearly",async()=>{
+    vi.stubEnv("VOICE_TTS_API_URL","");
+    vi.mocked(synthesizeViaYarnSpace).mockRejectedValueOnce(new AsrError("ASR_QUOTA",429,"Quota exhausted"));
+    expect((await POST(request({text:"Hello",language:"ha"}))).status).toBe(429);
   });
   it("rejects unexpected provider content", async () => {
     vi.stubEnv("VOICE_TTS_API_URL","https://speech.example"); vi.stubEnv("VOICE_TTS_LANGUAGES","en-NG");
