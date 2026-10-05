@@ -24,7 +24,7 @@ export default function AskIlera(){
   const [busy,setBusy]=useState(false);
 
   async function ask(){
-    if(q.trim().length<3)return;
+    if(busy || q.trim().length<3)return;
     setBusy(true);setError("");
     try{
       const r=await fetch("/api/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({question:q,language})});
@@ -38,18 +38,18 @@ export default function AskIlera(){
 
   const engine=result?.model==="n-atlas"?"N-ATLAS":"N-ATLAS unavailable";
 
-  return <section className="panel">
+  return <section className="panel" id="ask">
     <span className="eyebrow">Ask Ìlera</span>
-    <h2>Ask in Nigerian English, Yorùbá, Hausa or Igbo</h2>
-    <p className="muted">The selected language is preserved through medical grounding and the official N-ATLAS response layer.</p>
+    <h2>Prefer to type?</h2>
+    <p className="muted">Ask about your period in the language you feel comfortable using.</p>
     <label className="voiceLanguage">Response language
-      <select value={language} onChange={e=>setLanguage(e.target.value as IlaraLanguage)}>
+      <select disabled={busy} value={language} onChange={e=>setLanguage(e.target.value as IlaraLanguage)}>
         {LANGUAGE_OPTIONS.map(x=><option key={x.code} value={x.code}>{x.label}</option>)}
       </select>
     </label>
     <div className="askrow">
-      <input aria-label="Menstrual health question" placeholder="e.g. How do I count my safe days?" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&ask()}/>
-      <button className="btn" onClick={ask} disabled={busy}>{busy?"Checking…":"Ask"}</button>
+      <input aria-label="Menstrual health question" placeholder="e.g. My cramps feel stronger this month." value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&ask()}/>
+      <button className="btn" onClick={ask} disabled={busy || q.trim().length < 3}>{busy?"Checking…":"Send question →"}</button>
     </div>
     {error&&<div className="risk urgent">{error}</div>}
     {result&&<div className="answer">

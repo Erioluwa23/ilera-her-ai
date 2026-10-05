@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {useRef,useState} from "react";
 import {LANGUAGE_OPTIONS,IlaraLanguage} from "@/lib/languages";
 
@@ -26,7 +27,7 @@ export default function LiteAsk(){
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||"Health response failed");
       if(signal?.aborted)return;
-      setAnswer(d.answer);setAnswerLanguage(code);speak(d.answer,code);
+      setAnswer(d.answer);setAnswerLanguage(code);
     }catch(error){if(!signal?.aborted)setStatus(error instanceof Error?error.message:"Health response failed.")}
     finally{requesting.current=false;setBusy(false)}
   }
@@ -45,11 +46,11 @@ export default function LiteAsk(){
   }
 
   return <main className="lite liteVoice">
-    <header><strong>ÌleraHer Lite</strong><a href="/">Full app</a></header>
+    <header><strong>ÌleraHer Lite</strong><Link href="/" prefetch={false}>Full app</Link></header>
     <div>
       <span className="eyebrow">Low-bandwidth voice mode</span>
-      <h1>Speak first. Type only if you need to.</h1>
-      <p>Minimal mobile interface with the same four-language N-ATLAS voice path.</p>
+      <h1>A little support. Less data.</h1>
+      <p>Speak or type in your language. Answers need an internet connection; audio plays only when you choose.</p>
     </div>
     <label>Language<select disabled={busy||voice.busy} value={language} onChange={e=>setLanguage(e.target.value as IlaraLanguage)}>{LANGUAGE_OPTIONS.map(x=><option key={x.code} value={x.code}>{x.label}</option>)}</select></label>
     <button className={recording?"liteMic recording":"liteMic"} type="button" disabled={(busy||voice.busy)&&!recording} onClick={recording?voice.stop:startVoice}>{recording?"■ Stop and send":"🎙️ Tap to speak"}</button>

@@ -47,19 +47,21 @@ export default function VoiceLog(){
       if(!answerRes.ok)throw new Error(answer.error||"Health response failed");
       if(signal.aborted)return;
       setResult({transcript:transcript.text,answer:answer.answer,asrModel:transcript.model,answerModel:answer.model,urgency:answer.urgency,language:code});
-      setStatus("");speak(answer.answer,code);
+      setStatus("");
     });
   }
 
   return <section className="panel voicepanel primaryVoice" id="voice">
-    <span className="eyebrow">Primary access · N-ATLAS voice</span>
+    <span className="eyebrow">Voice support</span>
     <h2>{copy.title}</h2>
     <p className="muted">{copy.subtitle}</p>
     <div className="languagePills" aria-label="Choose language">
-      {LANGUAGE_OPTIONS.map(x=><button key={x.code} type="button" className={language===x.code?"languageChoice active":"languageChoice"} disabled={busy} onClick={()=>setLanguage(x.code)}>{x.label}</button>)}
+      {LANGUAGE_OPTIONS.map(x=><button key={x.code} type="button" className={language===x.code?"languageChoice active":"languageChoice"} disabled={busy} aria-pressed={language===x.code} onClick={()=>setLanguage(x.code)}>{x.label}</button>)}
     </div>
     <button className={recording?"mic recording":"mic"} aria-label={recording?"Stop recording":"Start recording"} disabled={busy&&!recording} onClick={recording?voice.stop:start}>{recording?"■":"🎙️"}</button>
     <b>{recording?copy.listening:copy.tap}</b>
+    <p className="voiceHint">Online connection needed for answers. Audio plays only when you choose.</p>
+    <a className="textlink" href="#ask">Type instead →</a>
     {(voice.error||status)&&<p className="transcript statusBox">{voice.error||status}</p>}
     {result&&<div className="voiceResult">
       <div className="voiceResultBlock"><span>Transcript</span><p>{result.transcript}</p></div>
