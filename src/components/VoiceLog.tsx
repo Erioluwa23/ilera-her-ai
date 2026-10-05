@@ -1,74 +1,296 @@
 "use client";
-import {useState} from "react";
-import {LANGUAGE_OPTIONS,IlaraLanguage} from "@/lib/languages";
-
-import {useVoiceRecording,speakResponse} from "@/lib/use-voice-recording";
-
-type VoiceResult={
-  language:IlaraLanguage;
-  transcript:string;
-  answer:string;
-  asrModel?:string;
-  answerModel?:string;
-  urgency?:string;
+import { useEffect, useRef, useState } from "react";
+import { LANGUAGE_OPTIONS, type IlaraLanguage } from "@/lib/languages";
+import { useLanguage } from "@/lib/use-language";
+import { useVoiceRecording } from "@/lib/use-voice-recording";
+import { useVoicePlayback } from "@/lib/use-voice-playback";
+type Transcript = { text: string; language: IlaraLanguage };
+const PROMPTS: Record<IlaraLanguage, string> = {
+  "en-NG": "Speak your symptoms in your language",
+  yo: "Sọ ohun tó ń ṣe ọ́ ní èdè rẹ",
+  ha: "Yi magana game da alamominki da harshenki",
+  ig: "Kwuo mgbaàmà gị n'asụsụ gị",
 };
-
-const COPY:Record<IlaraLanguage,{title:string;subtitle:string;tap:string;listening:string;transcribing:string;responding:string;replay:string}>={
-  "en-NG":{title:"Speak your symptoms in your language",subtitle:"Tap once, speak naturally, then tap again when you finish.",tap:"Tap to speak",listening:"Listening… tap to finish",transcribing:"Transcribing with N-ATLAS…",responding:"Preparing your response…",replay:"Hear response again"},
-  yo:{title:"Sọ ohun tó ń ṣe ọ́ ní èdè rẹ",subtitle:"Tẹ ẹ lẹ́ẹ̀kan, sọ̀rọ̀, kí o sì tẹ ẹ lẹ́ẹ̀kan síi nígbà tí o bá parí.",tap:"Tẹ láti sọ̀rọ̀",listening:"Mo ń gbọ́… tẹ láti parí",transcribing:"N-ATLAS ń kọ ohun tí o sọ…",responding:"A ń pèsè ìdáhùn rẹ…",replay:"Gbọ́ ìdáhùn lẹ́ẹ̀kansi"},
-  ha:{title:"Yi magana game da alamominki da harshenki",subtitle:"Danna sau ɗaya, yi magana, sannan danna kuma idan kin gama.",tap:"Danna ki yi magana",listening:"Ana sauraro… danna ki gama",transcribing:"N-ATLAS na rubuta abin da kika faɗa…",responding:"Ana shirya amsarki…",replay:"Sake sauraron amsa"},
-  ig:{title:"Kwuo mgbaàmà gị n'asụsụ gị",subtitle:"Pịa otu ugboro, kwuo okwu, pịa ọzọ mgbe ị mechara.",tap:"Pịa ka ị kwuo okwu",listening:"Ana m ege ntị… pịa ka ị kwụsị",transcribing:"N-ATLAS na-ede ihe ị kwuru…",responding:"A na-akwadebe azịza gị…",replay:"Gee azịza ahụ ọzọ"}
-};
-
-export default function VoiceLog(){
-  const voice=useVoiceRecording();
-  const {recording,busy}=voice;
-  const [status,setStatus]=useState("");
-  const [result,setResult]=useState<VoiceResult|null>(null);
-  const [language,setLanguage]=useState<IlaraLanguage>("en-NG");
-  const copy=COPY[language];
-
-  function speak(text:string,code:IlaraLanguage){
-    if(!speakResponse(text,code))setStatus("Speech playback for this language is unavailable on this device. Read the response below.");
+export default function VoiceLog({ compact = false }: { compact?: boolean }) {
+  const { language, setLanguage } = useLanguage(),
+    voice = useVoiceRecording(),
+    playback = useVoicePlayback();
+  const [transcript, setTranscript] = useState<Transcript | null>(null),
+    [answer, setAnswer] = useState(""),
+    [urgency, setUrgency] = useState("");
+  const [status, setStatus] = useState(""),
+    [error, setError] = useState(""),
+    [answerBusy, setAnswerBusy] = useState(false),
+    [seconds, setSeconds] = useState(0),
+    [audioUrl, setAudioUrl] = useState("");
+  const url = useRef(""),
+    answerController = useRef<AbortController | null>(null),
+    sending = useRef(false);
+  const busy = voice.busy || answerBusy;
+  useEffect(() => {
+    if (!voice.recording) return;
+    const timer = setInterval(() => setSeconds((v) => v + 1), 1000);
+    return () => clearInterval(timer);
+  }, [voice.recording]);
+  useEffect(
+    () => () => {
+      answerController.current?.abort();
+      if (url.current) URL.revokeObjectURL(url.current);
+    },
+    [],
+  );
+  function clearAudio() {
+    if (url.current) URL.revokeObjectURL(url.current);
+    url.current = "";
+    setAudioUrl("");
   }
-  async function start(){
-    setResult(null);setStatus("");
-    await voice.start(language,async(audio,filename,code,signal)=>{
-      setStatus(COPY[code].transcribing);
-      const f=new FormData();f.append("audio",audio,filename);f.append("language",code);
-      const transcribeRes=await fetch("/api/transcribe",{method:"POST",body:f,signal});
-      const transcript=await transcribeRes.json();
-      if(!transcribeRes.ok)throw new Error(transcript.error||"Transcription failed");
-      if(signal.aborted)return;
-      setResult({transcript:transcript.text,answer:"",asrModel:transcript.model,language:code});
-      setStatus(COPY[code].responding);
-      const answerRes=await fetch("/api/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({question:transcript.text,language:code}),signal});
-      const answer=await answerRes.json();
-      if(!answerRes.ok)throw new Error(answer.error||"Health response failed");
-      if(signal.aborted)return;
-      setResult({transcript:transcript.text,answer:answer.answer,asrModel:transcript.model,answerModel:answer.model,urgency:answer.urgency,language:code});
-      setStatus("");
+  function cancel() {
+    voice.cancel();
+    answerController.current?.abort();
+    sending.current = false;
+    setAnswerBusy(false);
+    setStatus("");
+    playback.stop();
+  }
+  async function record() {
+    if (busy) return;
+    playback.stop();
+    clearAudio();
+    setTranscript(null);
+    setAnswer("");
+    setUrgency("");
+    setError("");
+    setSeconds(0);
+    setStatus("");
+    await voice.start(language, async (audio, filename, code, signal) => {
+      url.current = URL.createObjectURL(audio);
+      setAudioUrl(url.current);
+      setStatus("Checking what we heard…");
+      const form = new FormData();
+      form.append("audio", audio, filename);
+      form.append("language", code);
+      try {
+        const response = await fetch("/api/transcribe", {
+          method: "POST",
+          body: form,
+          signal,
+        });
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(
+            data.error || "Could not understand the recording. Try again.",
+          );
+        if (signal.aborted) return;
+        if (typeof data.text !== "string" || !data.text.trim())
+          throw new Error("No speech was detected. Please record again.");
+        setTranscript({ text: data.text, language: code });
+      } finally {
+        if (!signal.aborted) setStatus("");
+      }
     });
   }
-
-  return <section className="panel voicepanel primaryVoice" id="voice">
-    <span className="eyebrow">Voice support</span>
-    <h2>{copy.title}</h2>
-    <p className="muted">{copy.subtitle}</p>
-    <div className="languagePills" aria-label="Choose language">
-      {LANGUAGE_OPTIONS.map(x=><button key={x.code} type="button" className={language===x.code?"languageChoice active":"languageChoice"} disabled={busy} aria-pressed={language===x.code} onClick={()=>setLanguage(x.code)}>{x.label}</button>)}
-    </div>
-    <button className={recording?"mic recording":"mic"} aria-label={recording?"Stop recording":"Start recording"} disabled={busy&&!recording} onClick={recording?voice.stop:start}>{recording?"■":"🎙️"}</button>
-    <b>{recording?copy.listening:copy.tap}</b>
-    <p className="voiceHint">Online connection needed for answers. Audio plays only when you choose.</p>
-    <a className="textlink" href="#ask">Type instead →</a>
-    {(voice.error||status)&&<p className="transcript statusBox">{voice.error||status}</p>}
-    {result&&<div className="voiceResult">
-      <div className="voiceResultBlock"><span>Transcript</span><p>{result.transcript}</p></div>
-      <div className="voiceResultBlock"><span>ÌleraHer</span><p>{result.answer}</p></div>
-      {result.urgency&&<div className={"risk "+result.urgency}><strong>Urgency: {result.urgency}</strong></div>}
-      <button className="secondaryBtn" type="button" disabled={!result.answer} onClick={()=>speak(result.answer,result.language)}>🔊 {copy.replay}</button>
-      <small>ASR: {result.asrModel||"N-ATLAS"} · Response: {result.answerModel==="n-atlas"?"N-ATLAS":"language-grounded response"}</small>
-    </div>}
-  </section>;
+  async function send() {
+    if (!transcript || sending.current || voice.busy) return;
+    const current = transcript;
+    const controller = new AbortController();
+    answerController.current = controller;
+    sending.current = true;
+    setAnswerBusy(true);
+    setError("");
+    setAnswer("");
+    setStatus("Preparing your guidance…");
+    try {
+      const response = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          question: current.text,
+          language: current.language,
+        }),
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(
+          data.error || "Could not get guidance. Try sending again.",
+        );
+      if (controller.signal.aborted) return;
+      if (typeof data.answer !== "string" || !data.answer.trim())
+        throw new Error("No guidance was returned. Try sending again.");
+      setAnswer(data.answer);
+      setUrgency(
+        ["routine", "attention", "urgent"].includes(data.urgency)
+          ? data.urgency
+          : "",
+      );
+    } catch (e) {
+      if (!controller.signal.aborted)
+        setError(e instanceof Error ? e.message : "Could not get guidance.");
+    } finally {
+      if (answerController.current === controller) {
+        sending.current = false;
+        setAnswerBusy(false);
+        setStatus("");
+      }
+    }
+  }
+  return (
+    <section
+      className={
+        "panel voicepanel voiceScreen" + (compact ? " compactVoice" : "")
+      }
+    >
+      <span className="eyebrow">
+        {compact ? "Low-data voice support" : "Ask privately · Voice support"}
+      </span>
+      <h1>{PROMPTS[language]}</h1>
+      <p className="muted">
+        Tap to record. Speak naturally, then stop when you finish.
+      </p>
+      <div className="languagePills" role="group" aria-label="Choose language">
+        {LANGUAGE_OPTIONS.map((x) => (
+          <button
+            key={x.code}
+            type="button"
+            disabled={busy}
+            aria-pressed={language === x.code}
+            className={
+              language === x.code ? "languageChoice active" : "languageChoice"
+            }
+            onClick={() => {
+              setLanguage(x.code);
+              playback.stop();
+              setTranscript(null);
+              setAnswer("");
+              setUrgency("");
+              setError("");
+              clearAudio();
+            }}
+          >
+            {x.label}
+          </button>
+        ))}
+      </div>
+      <div className="voiceStage">
+        <span className="pill">
+          {voice.recording
+            ? "Recording"
+            : voice.busy
+              ? "Transcribing"
+              : answerBusy
+                ? "Getting guidance"
+                : answer
+                  ? "Ready to listen"
+                  : transcript
+                    ? "Confirm your recording"
+                    : "Ready when you are"}
+        </span>
+        <button
+          type="button"
+          className={voice.recording ? "mic recording" : "mic"}
+          disabled={busy && !voice.recording}
+          aria-label={voice.recording ? "Stop recording" : "Start recording"}
+          onClick={voice.recording ? voice.stop : record}
+        >
+          {voice.recording ? "■" : "🎙"}
+        </button>
+        <strong>
+          {voice.recording
+            ? "Stop recording"
+            : transcript
+              ? "Record again"
+              : "Tap to speak"}
+        </strong>
+        {voice.recording && <p role="timer">{seconds}s / 60s</p>}
+        <p className="voiceHint">
+          Up to 60 seconds · Microphone permission required
+        </p>
+        {busy && (
+          <button className="secondaryBtn" onClick={cancel}>
+            Cancel
+          </button>
+        )}
+      </div>
+      <p role="status" aria-live="polite">
+        {status}
+      </p>
+      {(voice.error || error) && (
+        <p role="alert" className="risk attention">
+          {voice.error || error}
+        </p>
+      )}
+      {audioUrl && (
+        <div className="recordingPreview">
+          <label htmlFor="recording-audio">Listen to your recording</label>
+          <audio id="recording-audio" src={audioUrl} controls preload="none" />
+        </div>
+      )}
+      {transcript && (
+        <div className="voiceResult">
+          <div className="voiceResultBlock">
+            <span>Check what we heard</span>
+            <p>{transcript.text}</p>
+          </div>
+          <p className="small muted">
+            Does this match what you said? Confirm, or record again.
+          </p>
+          <div className="screenActions">
+            <button className="btn" disabled={busy} onClick={send}>
+              {answer ? "Get guidance again" : "Yes, get guidance →"}
+            </button>
+            <button className="secondaryBtn" disabled={busy} onClick={record}>
+              Record again
+            </button>
+          </div>
+        </div>
+      )}
+      {answer && transcript && (
+        <article className="voiceResult">
+          <h2>Your guidance</h2>
+          <p>{answer}</p>
+          {urgency && (
+            <div className={"risk " + urgency}>Care priority: {urgency}</div>
+          )}
+          <div className="screenActions">
+            {playback.state === "idle" ? (
+              <button
+                className="btn"
+                onClick={() => playback.play(answer, transcript.language)}
+              >
+                ▶ Listen to guidance
+              </button>
+            ) : (
+              <>
+                <button
+                  className="btn"
+                  onClick={
+                    playback.state === "paused"
+                      ? playback.resume
+                      : playback.pause
+                  }
+                >
+                  {playback.state === "paused" ? "▶ Resume" : "Ⅱ Pause"}
+                </button>
+                <button className="secondaryBtn" onClick={playback.stop}>
+                  Stop audio
+                </button>
+              </>
+            )}
+          </div>
+          {playback.error && (
+            <p role="status" className="risk attention">
+              {playback.error}
+            </p>
+          )}
+          <p className="small muted">
+            Playback depends on voices available on your device. Health
+            information supports professional care.
+          </p>
+        </article>
+      )}
+      <p className="voiceHint">
+        Online connection needed for answers. Audio plays only when you choose.
+      </p>
+    </section>
+  );
 }

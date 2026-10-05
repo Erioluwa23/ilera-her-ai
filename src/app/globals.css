@@ -812,3 +812,244 @@ footer {
     width: 100%;
   }
 }
+/* Dedicated mobile-first screens */
+.appScreen {
+  max-width: 760px;
+  margin: 32px auto 0;
+  min-height: 60vh;
+}
+.appScreen h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.12;
+  letter-spacing: -1px;
+  margin: 12px 0 22px;
+}
+.appScreen > .panel {
+  margin: 0;
+}
+.desktopNav {
+  display: flex;
+  gap: 22px;
+}
+.desktopNav a {
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 0;
+}
+.desktopNav a[aria-current="page"] {
+  border-bottom: 3px solid #74a857;
+}
+.mobileNav a[aria-current="page"] {
+  color: #164b35;
+  background: var(--soft);
+  border-radius: 12px;
+}
+.welcomeScreen {
+  max-width: 480px;
+  margin: auto !important;
+  text-align: center;
+}
+.welcomeScreen .welcomeArt {
+  height: 210px;
+  border-radius: 18px;
+  margin: 22px 0;
+}
+.welcomeLanguages {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0;
+}
+.welcomeLanguages button {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+}
+.fullWidth {
+  width: 100%;
+}
+.welcomeScreen > .textlink {
+  display: block;
+  margin-top: 18px;
+}
+.interactiveCalendar {
+  max-width: 510px;
+  margin: 28px auto;
+}
+.interactiveCalendar .calendarTitle button {
+  padding: 8px 14px;
+  font-size: 24px;
+  min-height: 44px;
+}
+.interactiveCalendar .calendarGrid {
+  gap: 6px;
+}
+.interactiveCalendar .calendarGrid button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: white;
+  color: var(--ink);
+  font-weight: 700;
+}
+.interactiveCalendar .calendarGrid button.logged {
+  background: var(--ink);
+  color: white;
+}
+.interactiveCalendar .calendarGrid button.predicted {
+  background: var(--lemon);
+}
+.interactiveCalendar .calendarGrid button.today {
+  outline: 1px solid var(--ink);
+  outline-offset: -3px;
+}
+.interactiveCalendar .calendarGrid button.selected {
+  box-shadow: 0 0 0 3px #74a857;
+}
+.calendarActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.selectedDay {
+  padding: 20px;
+  background: var(--soft);
+  border-radius: 18px;
+  margin: 22px 0;
+}
+.selectedDay h2 {
+  font-size: 22px;
+  margin: 0 0 10px;
+}
+.screenActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 20px 0 0;
+}
+.cycleScreen .stats {
+  grid-template-columns: 1fr 1fr;
+}
+.formScreen .formgrid {
+  grid-template-columns: 1fr 1fr;
+}
+.choiceGroup {
+  border: 0;
+  padding: 0;
+  margin: 24px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.choiceGroup legend {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.choiceGroup button {
+  text-transform: capitalize;
+  flex: 1;
+}
+.voiceScreen h1 {
+  max-width: 560px;
+  margin: 12px auto 20px;
+}
+.voiceStage {
+  background: var(--soft);
+  border-radius: 24px;
+  padding: 24px 16px;
+  margin: 24px 0;
+}
+.voiceStage .mic {
+  width: 106px;
+  height: 106px;
+  font-size: 40px;
+}
+.voiceStage .voiceHint {
+  margin-bottom: 6px;
+}
+.voiceStage .secondaryBtn {
+  margin-top: 15px;
+}
+.recordingPreview {
+  text-align: left;
+  background: var(--soft);
+  padding: 16px;
+  border-radius: 16px;
+}
+.recordingPreview audio {
+  width: 100%;
+  margin-top: 12px;
+}
+.voiceScreen .voiceResult {
+  text-align: left;
+}
+.compactVoice {
+  padding: 20px;
+}
+.compactVoice h1 {
+  font-size: 30px;
+}
+.liteVoice {
+  gap: 14px;
+}
+.liteVoice > .panel {
+  margin: 0;
+}
+.liteVoice .mic {
+  width: 88px;
+  height: 88px;
+}
+.historyScreen .textlink {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .desktopNav {
+    display: none;
+  }
+  .appScreen {
+    margin-top: 22px;
+  }
+  .appScreen h1 {
+    font-size: 29px;
+  }
+  .formScreen .formgrid {
+    grid-template-columns: 1fr;
+  }
+  .appScreen .panel {
+    padding: 22px 18px;
+  }
+  .welcomeScreen .welcomeArt {
+    height: 180px;
+  }
+  .calendarActions .calendarLegend {
+    font-size: 10px;
+  }
+  .interactiveCalendar .calendarGrid {
+    gap: 4px;
+  }
+  .interactiveCalendar .calendarGrid button {
+    min-height: 44px;
+  }
+  .screenActions > * {
+    flex: 1;
+  }
+  .voiceScreen .screenActions .btn,
+  .voiceScreen .screenActions .secondaryBtn {
+    font-size: 14px;
+    padding: 14px 12px;
+  }
+}
+@media (max-width: 360px) {
+  .interactiveCalendar .calendarGrid {
+    gap: 2px;
+  }
+  .interactiveCalendar .calendarGrid button {
+    min-height: 40px;
+    font-size: 12px;
+  }
+  .screenActions {
+    flex-direction: column;
+  }
+}

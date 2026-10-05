@@ -18,3 +18,12 @@ Cycle logs remain browser-only. No cloud sync is claimed. Predictions are estima
 ## Follow-up
 
 Verify the deployed full and Lite routes at mobile and desktop sizes, period persistence and voice interactions once a browser is available. Backend service readiness remains a separate task.
+
+## 2026-10-05: multi-page, voice-first interaction
+
+- Separate screens: language welcome (/), cycle overview (/cycle), tap-based period logging (/log), voice guidance (/voice), saved history (/history), access/help (/help), lightweight voice (/lite).
+- Shared navigation highlights the current route. Language preference carries between welcome and voice screens. Existing browser period records and legacy records remain readable.
+- Calendar supports previous/next month, Today, date selection, recorded-duration highlights and selected-date links to logging. Logging supports flow/symptom taps, pain slider, saved-record editing and deletion with confirmation. Typed question and free-text note inputs were removed. Existing notes are preserved.
+- Voice journey: record, stop, replay original audio, review read-only transcript, confirm to request guidance, record again, cancel, retry, and listen/pause/resume/stop answer playback. Language is frozen for a recording/request; microphone tracks and requests are cleaned up when leaving the screen. Lite reuses the same voice-only component.
+- Read-only transcript and answer text remain as confirmation/accessibility output; there is no typed-question mode. Playback uses matching device voices and reports unavailable languages without claiming synthetic audio success. IVR remains a coming-soon screen with no fabricated number.
+- All 81 tests pass, including six new calendar edge-case tests. Production build passes all seven screens. Targeted Next.js ESLint checks pass. Browser interaction verification is scheduled after deployment; live ASR readiness is checked separately and is not established by these frontend tests.
