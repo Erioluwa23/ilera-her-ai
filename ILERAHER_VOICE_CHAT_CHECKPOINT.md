@@ -11,3 +11,9 @@ Limitations: recordings are saved on this device, not synchronized or backed up 
 The offline cache now excludes API responses and honors no-store; obsolete application cache entries are purged on service-worker activation.
 
 Production follow-up: voice and lite pages serve the saved chat with HTTP 200. Speech-output same-origin checks were adjusted for Render TLS termination using its server-provided RENDER_EXTERNAL_URL (not caller-controlled forwarded headers). Added a regression test for valid public-origin and rejected foreign-origin requests.
+
+## Compact chat layout — 2026-10-05
+
+Reduced message width to at most 440px, card spacing/padding and player height; reduced care/status blocks and action spacing while retaining replay, follow-up, share and download. Replaced language pills and the large microphone stage with a compact recording row: microphone on the left, recording status in the middle, native accessible language dropdown on the right. Narrow screens keep controls within the viewport, with a two-column fallback below 360px. Microphone uses an SVG icon rather than an emoji glyph.
+
+Validation: production build passed. Chromium browser checks verified dropdown selection, card width/height, compact recording-row height, mobile viewport overflow, and the existing recording/reload/replay/follow-up/share/deletion flows using mocked providers. No page errors. This is a presentation update; inference services and persistence behavior are unchanged.

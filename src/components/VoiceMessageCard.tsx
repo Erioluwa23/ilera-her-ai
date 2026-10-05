@@ -59,7 +59,7 @@ export default function VoiceMessageCard({ message, parent, saved, busy, playbac
       {(message.role === "assistant" || message.confirmed) && <button className="secondaryBtn" disabled={busy} onClick={onFollowUp}>↳ Voice follow-up</button>}
       {message.role === "assistant" && !message.audio && <button className="textbtn" disabled={busy} onClick={onSaveAudio}>Save reply audio</button>}
       <button className="textbtn" onClick={() => setSharing(!sharing)}>Share</button>
-      <button className="textbtn" onClick={download}>{message.audio ? "Download audio" : "Download reply"}</button>
+      <button className="textbtn" onClick={download} aria-label={message.audio ? "Download audio" : "Download reply"}>Download</button>
     </div>
     {sharing && <div className="shareNotice"><p>This shares this message outside ÌleraHer. It may contain private health information.</p><button className="secondaryBtn" onClick={share}>Share this message</button><button className="textbtn" onClick={() => setSharing(false)}>Cancel</button></div>}
     {notice && <p role="status" className="small">{notice}</p>}

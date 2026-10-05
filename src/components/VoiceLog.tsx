@@ -171,13 +171,20 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
     </div>
     <div ref={composer} className="voiceComposer">
       {selected && <div className="followUpBanner"><span>↳ Following up on {selected.role === "user" ? "your recording" : "ÌleraHer’s reply"} · {new Date(selected.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span><button className="textbtn" disabled={busy} onClick={() => setReplyTo(undefined)}>Ask a new question</button></div>}
-      <div className="languagePills" role="group" aria-label="Choose language">{LANGUAGE_OPTIONS.map(x => <button key={x.code} type="button" disabled={busy} aria-pressed={language === x.code} className={language === x.code ? "languageChoice active" : "languageChoice"} onClick={() => { setLanguage(x.code); stopAudio(); }}>{x.label}</button>)}</div>
-      <div className="voiceStage"><span className="pill">{voice.recording ? "Recording" : voice.busy ? "Checking recording" : processing ? "Preparing reply" : selected ? "Ready for your follow-up" : "Ready when you are"}</span>
-        <button type="button" className={voice.recording ? "mic recording" : "mic"} disabled={!loaded || (busy && !voice.recording)} aria-label={voice.recording ? "Stop recording" : selected ? "Record voice follow-up" : "Start recording"} onClick={voice.recording ? voice.stop : record}>{voice.recording ? "■" : "🎙"}</button>
-        <strong>{voice.recording ? "Stop recording" : selected ? "Tap to follow up" : "Tap to speak"}</strong>
-        {voice.recording && <p role="timer">{seconds}s / 60s</p>}
-        <p className="voiceHint">Up to 60 seconds · Review before sending</p>
-        {busy && <button className="secondaryBtn" onClick={cancel}>Cancel</button>}
+      <div className="voiceRecordBar">
+        <button type="button" className={voice.recording ? "mic recording" : "mic"} disabled={!loaded || (busy && !voice.recording)} aria-label={voice.recording ? "Stop recording" : selected ? "Record voice follow-up" : "Start recording"} onClick={voice.recording ? voice.stop : record}>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{voice.recording ? <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" /> : <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" /></>}</svg>
+        </button>
+        <div className="recordBarCopy">
+          <strong>{voice.recording ? "Recording…" : voice.busy ? "Checking audio…" : processing ? "Preparing reply…" : selected ? "Voice follow-up" : "Tap to speak"}</strong>
+          {voice.recording ? <span role="timer">{seconds}s / 60s · Tap to stop</span> : <span>Up to 60s · Review before sending</span>}
+          {busy && <button className="textbtn" onClick={cancel}>Cancel</button>}
+        </div>
+        <label className="chatLanguageSelect">Language
+          <select aria-label="Choose language" value={language} disabled={busy} onChange={e => { setLanguage(e.target.value as IlaraLanguage); stopAudio(); }}>
+            {LANGUAGE_OPTIONS.map(x => <option key={x.code} value={x.code}>{x.code === "en-NG" ? "English (NG)" : x.label}</option>)}
+          </select>
+        </label>
       </div>
       <p role="status" aria-live="polite">{status}</p>
       {(voice.error || error || playback.error) && <p role="alert" className="risk attention">{voice.error || error || playback.error}</p>}
