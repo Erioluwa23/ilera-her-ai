@@ -31,9 +31,10 @@ def main():
     if metadata.get("sdk") != "gradio" or hardware.get("requested") != "zero-a10g":
         raise RuntimeError("The existing Space must use Gradio with ZeroGPU requested.")
     root = Path(__file__).resolve().parents[1] / "services/ileraher-natlas-space"
+    files = [*FILES, "THIRD_PARTY.md", *[str(p.relative_to(root)) for p in sorted([*(root / "yarngpt").rglob("*"), *(root / "outetts").rglob("*")]) if p.is_file() and "__pycache__" not in p.parts]]
     operations = [
         CommitOperationAdd(path_in_repo=name, path_or_fileobj=str(root / name))
-        for name in FILES
+        for name in files
     ]
     # One atomic commit; reject concurrent changes rather than overwriting them.
     result = api.create_commit(
@@ -41,9 +42,9 @@ def main():
         repo_type="space",
         operations=operations,
         parent_commit=metadata["sha"],
-        commit_message="Deploy IleraHer official NCAIR ASR runtime",
+        commit_message="Deploy IleraHer NCAIR answers and YarnGPT spoken replies",
     )
-    print("Uploaded four runtime files to", SPACE)
+    print("Uploaded reviewed runtime files to", SPACE)
     print("Space commit:", result.oid)
     print("Build, model access and four-language inference still require verification.")
 

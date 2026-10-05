@@ -60,3 +60,15 @@ latency and expected words. Silence or mocked fixtures are not accuracy evidence
 Official hosting guidance:
 https://huggingface.co/docs/hub/spaces-overview
 https://huggingface.co/docs/hub/spaces-zerogpu
+
+## Answer generation and spoken replies
+
+- `/answer(question, context_json, language, system)` uses `NCAIR1/N-ATLaS` with the app's reviewed evidence and bounded dialogue. HF_TOKEN also needs approved access to this gated LLM.
+- `/synthesize(text, language)` uses `saheedniyi/YarnGPT2b` and its WavTokenizer decoder. Returns WAV audio plus verified model/language provenance. Defaults are idera (English) and female2 (Yoruba, Hausa, Igbo). Replies are capped at 180 words / 80 seconds; no silent truncation.
+- `/status` reports `llmLoaded` and `ttsLoaded` independently. These optional models initialize on CUDA at startup; missing access/decoder leaves ASR available. GPU work shares the existing serialization lock and free quota.
+
+The decoder uses the exact Google Drive download linked by the YarnGPT2b author, verified against SHA256 before deserialization. Decoder configuration is pinned to a Hub revision. See THIRD_PARTY.md for the tokenizer and decoder source/license notices.
+
+Client integration defaults to this owned Space without new Render secrets. The voice chat saves the reply audio on the device for replay/download/sharing. Existing external VOICE_TTS_API_URL remains an explicit override.
+
+Deployment is triggered by runtime changes on main or manual Run workflow. Unit tests do not verify GPU model compatibility, pronunciation, language accuracy, memory fit, or runtime latency; live checks are required.

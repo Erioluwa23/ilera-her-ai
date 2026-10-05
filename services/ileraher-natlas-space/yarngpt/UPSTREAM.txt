@@ -1,0 +1,4 @@
+Source: https://github.com/saheedniyi02/yarngpt
+Revision: 8bb0eb27d307f4b5903149e24ecc1bd3caa4af2d
+License: MIT (see upstream README)
+Unmodified tokenizer and four default speaker prompts.

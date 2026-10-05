@@ -4,8 +4,6 @@ import {AsrError,validateAudio} from "@/lib/asr-contract";
 import type {SupportedLanguage} from "@/lib/natlas";
 import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
 
-const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
-
 const verifiedLanguages=new Set<string>();
 const ILERAHER_ASR_SPACE="Kolade1/ileraHer-natlas-runtime";
 
@@ -14,24 +12,13 @@ export function natlasSpaceId(){
 }
 
 export function natlasLlmSpaceId(){
-  return process.env.NATLAS_HF_LLM_SPACE?.trim()||null;
+  return process.env.NATLAS_HF_LLM_SPACE?.trim()||ILERAHER_ASR_SPACE;
 }
 
 function clientOptions(){
   const token=huggingFaceToken();
   if(token&&!token.startsWith("hf_"))throw new AsrError("ASR_AUTH",503,"Invalid server Hugging Face credential format.");
   return token?{token:token as `hf_${string}`,record_history:false}:{record_history:false};
-}
-
-async function connectWithRetry(space:string){
-  // LLM connection behavior remains separate from ASR.
-  let lastError:unknown;
-  for(let attempt=0;attempt<3;attempt++){
-    try{return await Client.connect(space,clientOptions())}catch(error){
-      lastError=error;if(attempt<2)await sleep(attempt===0?2500:7000);
-    }
-  }
-  throw lastError;
 }
 
 export function classifyAsrError(error:unknown):AsrError{
@@ -91,17 +78,20 @@ export async function inspectNatlasSpace(){
     const api=await app.view_api();
     const reachable=Boolean(api.named_endpoints?.["/transcribe"]);
     let gatedModelsAccessible=false,modelsLoaded=false;
+    let generation:Record<string,unknown>={llmLoaded:false,ttsLoaded:false};
     if(api.named_endpoints?.["/status"]){
       const result=await app.predict("/status",[]);
-      const status=Array.isArray(result.data)?result.data[0]:result.data;
+      let status:unknown=Array.isArray(result.data)?result.data[0]:result.data;
+      if(typeof status==="string"){try{status=JSON.parse(status)}catch{status=null}}
       if(status&&typeof status==="object"){
         const verified=status as Record<string,unknown>;
         gatedModelsAccessible=verified.provider==="ileraher_zerogpu_asr"&&verified.gatedModelsAccessible===true;
         modelsLoaded=verified.modelsLoaded===true;
+        generation={llmLoaded:verified.llmLoaded===true,ttsLoaded:verified.ttsLoaded===true,llmError:verified.llmError,ttsError:verified.ttsError,ttsStage:verified.ttsStage};
       }
     }
     const inferenceTested=verifiedLanguages.size===4;
-    return {space:natlasSpaceId(),sdk:info.sdk,stage:info.runtime?.stage,reachable,gatedModelsAccessible,modelsLoaded,inferenceTested,verifiedLanguages:[...verifiedLanguages],ready:reachable&&gatedModelsAccessible&&modelsLoaded&&inferenceTested};
+    return {space:natlasSpaceId(),sdk:info.sdk,stage:info.runtime?.stage,reachable,gatedModelsAccessible,modelsLoaded,inferenceTested,verifiedLanguages:[...verifiedLanguages],...generation,ready:reachable&&gatedModelsAccessible&&modelsLoaded&&inferenceTested};
   },undefined,8000);
 }
 
@@ -123,78 +113,49 @@ export async function transcribeViaNatlasSpace(audio:Blob,language:SupportedLang
   },signal);
 }
 
-function textParamKind(p:any){
-  const name=String(p?.parameter_name||p?.label||"").toLowerCase();
-  const component=String(p?.component||"").toLowerCase();
-  const type=String(p?.type||p?.python_type?.type||"").toLowerCase();
-  if(name.includes("system"))return "system";
-  if(name.includes("history")||name.includes("chatbot")||component.includes("chatbot"))return "history";
-  if(name.includes("language")||name==="lang")return "language";
-  if(name.includes("model"))return "model";
-  if(name.includes("task"))return "task";
-  if(name.includes("temperature"))return "temperature";
-  if(name.includes("token")||name.includes("length"))return "tokens";
-  if(name.includes("message")||name.includes("question")||name.includes("prompt")||name.includes("input")||component.includes("textbox")||type.includes("str"))return "text";
-  return "other";
+function structured(value:unknown):Record<string,unknown>{
+  if(typeof value==="string") value=JSON.parse(value);
+  if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("Invalid model response");
+  return value as Record<string,unknown>;
 }
 
-function extractText(value:any):string|undefined{
-  if(typeof value==="string"&&value.trim())return value.trim();
-  if(Array.isArray(value)){
-    for(const item of value){
-      const text=extractText(item);
-      if(text)return text;
-    }
-  }
-  if(value&&typeof value==="object"){
-    for(const key of ["text","response","output","result","value","data"]){
-      const text=extractText(value[key]);
-      if(text)return text;
-    }
-  }
-  return undefined;
+export async function generateViaNatlasSpace(question:string,groundedContext:unknown,language:SupportedLanguage,system:string){
+  return withAsrClient(async app=>{
+    const result=await app.predict("/answer",[question,JSON.stringify(groundedContext),speechLanguageFromUi(language),system]);
+    const data=structured((result.data as unknown[])[0]);
+    if(data.model!=="NCAIR1/N-ATLaS"||data.provider!=="ileraher_zerogpu_llm"||data.language!==speechLanguageFromUi(language)||typeof data.text!=="string"||!data.text.trim())throw new Error("N-ATLaS answer verification failed");
+    return {text:data.text.trim(),endpoint:"/answer",space:natlasSpaceId()};
+  },undefined,120000);
 }
 
-export async function generateViaNatlasSpace(
-  question:string,
-  groundedContext:unknown,
-  language:SupportedLanguage,
-  system:string
-){
-  const space=natlasLlmSpaceId();
-  if(!space)throw new Error("N-ATLAS LLM Hugging Face Space is not configured. Set NATLAS_HF_LLM_SPACE.");
+export function verifiedAudioUrl(value:unknown){
+  if(typeof value!=="string")throw new Error("Missing reply audio");
+  const url=new URL(value);
+  if(url.origin!=="https://kolade1-ileraher-natlas-runtime.hf.space"||url.username||url.password||!url.pathname.startsWith("/gradio_api/file="))throw new Error("Untrusted reply audio location");
+  return url;
+}
 
-  const app=await connectWithRetry(space);
-  const api:any=await app.view_api();
-  const entries=Object.entries(api?.named_endpoints||{}) as [string,any][];
-  const candidates=entries.filter(([,info])=>Array.isArray(info?.parameters)&&info.parameters.some((p:any)=>{
-    const kind=textParamKind(p);
-    return kind==="text"||kind==="history";
-  }));
-  if(!candidates.length)throw new Error(`N-ATLAS LLM Space ${space} exposes no usable text API endpoint.`);
-
-  const [endpoint,info]=candidates[0];
-  const fullPrompt=`${system}\n\nGROUNDED_CONTEXT:\n${JSON.stringify(groundedContext)}\n\nUSER_QUESTION:\n${question}`;
-  let textUsed=false;
-  const payload=(info.parameters||[]).map((p:any)=>{
-    const kind=textParamKind(p);
-    if(kind==="system")return system;
-    if(kind==="history")return [];
-    if(kind==="language")return speechLanguageFromUi(language);
-    if(kind==="model")return "NCAIR1/N-ATLaS";
-    if(kind==="task")return "Chat";
-    if(kind==="temperature")return p?.parameter_has_default?p?.parameter_default:0.1;
-    if(kind==="tokens")return p?.parameter_has_default?p?.parameter_default:700;
-    if(kind==="text"){
-      if(!textUsed){textUsed=true;return fullPrompt}
-      return question;
+export async function synthesizeViaYarnSpace(text:string,language:SupportedLanguage,signal?:AbortSignal){
+  return withAsrClient(async(app,abortSignal)=>{
+    const result=await app.predict("/synthesize",[text,speechLanguageFromUi(language)]);
+    const values=result.data as unknown[];
+    const provenance=structured(values[1]);
+    if(provenance.model!=="saheedniyi/YarnGPT2b"||provenance.provider!=="ileraher_zerogpu_tts"||provenance.language!==speechLanguageFromUi(language))throw new Error("YarnGPT audio verification failed");
+    const file=structured(values[0]);
+    const url=verifiedAudioUrl(file.url);
+    const token=huggingFaceToken();
+    const response=await fetch(url,{redirect:"error",signal:abortSignal,headers:token?{Authorization:`Bearer ${token}`}:{}});
+    if(!response.ok||!response.body)throw new Error("Reply audio unavailable");
+    const reader=response.body.getReader(),chunks:Uint8Array[]=[];
+    let bytes=0;
+    while(true){
+      const next=await reader.read();if(next.done)break;
+      bytes+=next.value.byteLength;
+      if(bytes>4*1024*1024){await reader.cancel();throw new Error("Reply audio too large")}
+      chunks.push(next.value);
     }
-    if(p?.parameter_has_default)return p?.parameter_default;
-    return null;
-  });
-
-  const result:any=await app.predict(endpoint,payload);
-  const text=extractText(result?.data);
-  if(!text)throw new Error("N-ATLAS LLM Space returned no response text.");
-  return {text,endpoint,space};
+    const buffer=Buffer.concat(chunks);
+    if(buffer.toString("ascii",0,4)!=="RIFF"||buffer.toString("ascii",8,12)!=="WAVE")throw new Error("Invalid reply audio format");
+    return buffer;
+  },signal,180000);
 }

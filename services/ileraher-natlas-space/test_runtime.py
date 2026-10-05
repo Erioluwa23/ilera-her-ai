@@ -11,7 +11,7 @@ SOURCE = Path(__file__).with_name("app.py")
 # Import only the boundary functions, excluding module startup/model downloads.
 TREE = ast.parse(SOURCE.read_text())
 FUNCTIONS = ast.Module(body=[n for n in TREE.body if isinstance(n, ast.FunctionDef)
-                            and n.name in ("normalize_language", "cleanup_audio", "transcribe")], type_ignores=[])
+                            and n.name in ("normalize_language", "cleanup_audio", "transcribe", "suspicious_repetition", "answer", "synthesize")], type_ignores=[])
 
 
 class RuntimeBoundaryTests(unittest.TestCase):
@@ -29,6 +29,21 @@ class RuntimeBoundaryTests(unittest.TestCase):
     def tearDown(self):
         self.environment.stop()
         self.cache.cleanup()
+
+    def test_repetition_guard(self):
+        self.assertTrue(self.context["suspicious_repetition"]("one two three four " * 10))
+        self.assertFalse(self.context["suspicious_repetition"]("Please explain why my period has become irregular this month"))
+
+    def test_unavailable_generation_does_not_acquire_gpu(self):
+        self.context["GENERATION_STATUS"] = {"llmLoaded": False, "ttsLoaded": False, "llmError": "Needs approved access", "ttsError": "Decoder unavailable"}
+        self.context["generate_answer"] = Mock()
+        self.context["generate_audio"] = Mock()
+        with self.assertRaisesRegex(ValueError, "approved access"):
+            self.context["answer"]("Question", "{}", "yo", "System")
+        with self.assertRaisesRegex(ValueError, "Decoder unavailable"):
+            self.context["synthesize"]("Hello", "yo")
+        self.context["generate_answer"].assert_not_called()
+        self.context["generate_audio"].assert_not_called()
 
     def test_cleanup_removes_cache_upload(self):
         upload = Path(self.cache.name) / "voice.wav"

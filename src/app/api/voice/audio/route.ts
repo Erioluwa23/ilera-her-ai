@@ -1,3 +1,4 @@
+import { synthesizeViaYarnSpace } from "@/lib/natlas-space";
 import { normalizeLanguage } from "@/lib/languages";
 
 export async function POST(req: Request) {
@@ -8,7 +9,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Request not allowed" }, { status: 403 });
   }
   const configured = process.env.VOICE_TTS_API_URL;
-  if (!configured) return Response.json({ error: "Downloadable reply audio is not configured. You can still replay with a supported device voice." }, { status: 503 });
+
   try {
     // Limit untrusted input before decoding it, and never accept a provider URL from a caller.
     const reader = req.body?.getReader();
@@ -28,6 +29,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "Invalid speech request" }, { status: 400 });
     }
     const language = normalizeLanguage(body.language);
+    if (!configured) {
+      const audio = await synthesizeViaYarnSpace(body.text, language, req.signal);
+      return new Response(new Uint8Array(audio), { headers: { "content-type": "audio/wav", "cache-control": "private, no-store", "x-speech-model": "saheedniyi/YarnGPT2b" } });
+    }
     if (!(process.env.VOICE_TTS_LANGUAGES || "").split(",").map(x => x.trim()).includes(language)) {
       return Response.json({ error: "Saved reply audio is unavailable in this language" }, { status: 503 });
     }

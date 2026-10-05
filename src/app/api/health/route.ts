@@ -17,8 +17,9 @@ export async function GET(){
       asrMode:"fixed-gradio-space",
       asrReady:runtimeStatus.ready,
       runtime:runtimeStatus,
-      llmConfigured:Boolean(process.env.NATLAS_LLM_API_URL||process.env.NATLAS_HF_LLM_SPACE),
-      llmMode:process.env.NATLAS_LLM_API_URL?"custom-endpoint":process.env.NATLAS_HF_LLM_SPACE?"huggingface-space":"curated-fallback",
+      llmConfigured:true,
+      llmMode:process.env.NATLAS_LLM_API_URL?"custom-endpoint":"huggingface-space",
+      ttsModel:"saheedniyi/YarnGPT2b",
       llmModel:process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS",
       asrModels:NATLAS_ASR_MODELS
     }

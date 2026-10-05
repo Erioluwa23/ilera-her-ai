@@ -1,6 +1,6 @@
 import {describe,it,expect,vi,afterEach} from "vitest";
 import {Client,handle_file,upload_files} from "@gradio/client";
-import {parseAsrResponse,classifyAsrError,transcribeViaNatlasSpace,inspectNatlasSpace} from "./natlas-space";
+import {parseAsrResponse,classifyAsrError,transcribeViaNatlasSpace,inspectNatlasSpace,generateViaNatlasSpace,synthesizeViaYarnSpace,verifiedAudioUrl} from "./natlas-space";
 import {NatlasSpeechProvider} from "./natlas";
 import {NATLAS_ASR_MODELS,speechLanguageFromUi,type IlaraLanguage} from "./languages";
 function wav(){const b=new Uint8Array(48);b.set(new TextEncoder().encode("RIFF"));b.set(new TextEncoder().encode("WAVE"),8);return new Blob([b],{type:"audio/wav"})}
@@ -66,5 +66,24 @@ describe("Gradio byte upload and lifecycle",()=>{
   it("does not call a Static Space ready",async()=>{
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue(Response.json({sdk:"static",runtime:{stage:"RUNNING"}})));
     expect(await inspectNatlasSpace()).toMatchObject({sdk:"static",ready:false,reachable:false,inferenceTested:false});
+  });
+});
+
+describe("answer and speech contracts",()=>{
+  it("rejects external audio URLs and credentials",()=>{
+    for(const url of ["https://evil.test/gradio_api/file=x","https://kolade1-ileraher-natlas-runtime.hf.space/other","https://user:pass@kolade1-ileraher-natlas-runtime.hf.space/gradio_api/file=x"]) expect(()=>verifiedAudioUrl(url)).toThrow();
+  });
+  it("uses the explicit answer endpoint and verifies N-ATLaS provenance",async()=>{
+    const predict=vi.fn().mockResolvedValue({data:[JSON.stringify({text:"Answer",model:"NCAIR1/N-ATLaS",provider:"ileraher_zerogpu_llm",language:"yoruba"})]});
+    const close=vi.fn(); vi.spyOn(Client,"connect").mockResolvedValue({predict,close,fetch:vi.fn()} as unknown as Client);
+    expect((await generateViaNatlasSpace("Question",{facts:["Reviewed"]},"yo","System")).text).toBe("Answer");
+    expect(predict).toHaveBeenCalledWith("/answer",["Question",'{"facts":["Reviewed"]}',"yoruba","System"]);expect(close).toHaveBeenCalled();
+    predict.mockResolvedValue({data:[JSON.stringify({text:"Answer",model:"other",provider:"ileraher_zerogpu_llm",language:"yoruba"})]});
+    await expect(generateViaNatlasSpace("Question",{},"yo","System")).rejects.toThrow();
+  });
+  it("downloads only verified WAV audio and closes the client",async()=>{
+    const close=vi.fn();vi.spyOn(Client,"connect").mockResolvedValue({predict:vi.fn().mockResolvedValue({data:[{url:"https://kolade1-ileraher-natlas-runtime.hf.space/gradio_api/file=/tmp/reply.wav"},JSON.stringify({model:"saheedniyi/YarnGPT2b",provider:"ileraher_zerogpu_tts",language:"igbo"})]}),close,fetch:vi.fn()} as unknown as Client);
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(Buffer.from("RIFFtestWAVEaudio"))));
+    expect((await synthesizeViaYarnSpace("Hello","ig")).toString()).toBe("RIFFtestWAVEaudio");expect(close).toHaveBeenCalled();
   });
 });
