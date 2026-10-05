@@ -242,9 +242,9 @@ def synthesize(text, language):
 
 
 def runtime_status():
-    return {"provider": "ileraher_zerogpu_asr", "gatedModelsAccessible": True,
+    return json.dumps({"provider": "ileraher_zerogpu_asr", "gatedModelsAccessible": True,
             "modelsLoaded": len(PIPELINES) == 4, "revisions": REVISIONS,
-            "inferenceTested": False, **GENERATION_STATUS}
+            "inferenceTested": False, **GENERATION_STATUS})
 
 
 with gr.Blocks(title="ÌleraHer NCAIR ASR", analytics_enabled=False, delete_cache=(60, 300)) as demo:
@@ -260,7 +260,7 @@ with gr.Blocks(title="ÌleraHer NCAIR ASR", analytics_enabled=False, delete_cach
     gr.Button("Answer").click(answer, [question, context, language, system], gr.Textbox(), api_name="answer", concurrency_limit=1, concurrency_id="asr")
     reply = gr.Textbox(label="Reply to read aloud")
     gr.Button("Speak").click(synthesize, [reply, language], [gr.Audio(label="Spoken reply"), gr.Textbox(label="Audio provenance")], api_name="synthesize", concurrency_limit=1, concurrency_id="asr")
-    gr.Button("Runtime status").click(runtime_status, outputs=gr.JSON(), api_name="status", queue=False)
+    gr.Button("Runtime status").click(runtime_status, outputs=gr.Textbox(), api_name="status", queue=False)
 
 if __name__ == "__main__":
     demo.queue(max_size=8, default_concurrency_limit=1).launch(
