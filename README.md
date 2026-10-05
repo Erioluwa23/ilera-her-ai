@@ -35,3 +35,5 @@ Space and latency_ms. Errors include stable code and error fields.
 `ILERAHER_PROGRESS_CHECKPOINT.md` records deployment and real-test evidence and blockers.
 
 Use `npm ci`, `npm test`, and `npm run build` before deployment.
+
+Dedicated phone support setup and acceptance checks: [IVR calls](docs/IVR_CALLS.md).

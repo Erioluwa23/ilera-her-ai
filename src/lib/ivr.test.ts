@@ -282,3 +282,52 @@ describe("authenticated phone call journey", () => {
     expect(xml).not.toContain("<Pause");
   });
 });
+
+describe("caller profile consent", () => {
+  it("offers optional PIN history only after recording consent", async () => {
+    vi.stubEnv("IVR_PROFILE_SECRET", "profile-secret".repeat(4));
+    const token = stateToken(call, "en-NG");
+    const xml = await (
+      await record(
+        request("/api/ivr/record?phase=consent&state=" + token, {
+          Digits: "1",
+          From: "+2348012345678",
+        }),
+      )
+    ).text();
+    expect(xml).toContain("/api/ivr/profile");
+    expect(xml).not.toContain("<Record");
+  });
+  it("allows anonymous callers to continue without a profile", async () => {
+    vi.stubEnv("IVR_PROFILE_SECRET", "profile-secret".repeat(4));
+    const token = stateToken(call, "en-NG");
+    const xml = await (
+      await record(
+        request("/api/ivr/record?phase=consent&state=" + token, {
+          Digits: "1",
+          From: "anonymous",
+        }),
+      )
+    ).text();
+    expect(xml).toContain("<Record");
+    expect(xml).not.toContain("/api/ivr/profile");
+  });
+  it("retains the authorized profile and previous answer on follow-up", async () => {
+    const { signState } = await import("./ivr");
+    const state = readState(stateToken(call, "en-NG", true));
+    state.profileId = "12345678-1234-1234-1234-123456789abc";
+    const xml = await (
+      await record(
+        request("/api/ivr/record?phase=retry&state=" + signState(state)),
+      )
+    ).text();
+    const token = new URL(
+      xml.match(/action="([^"]+)"/)![1].replaceAll("&amp;", "&"),
+    ).searchParams.get("state")!;
+    const next = readState(token, call);
+    expect(next.id).not.toBe(state.id);
+    expect(next.profileId).toBe(state.profileId);
+    expect(next.previous).toBe(state.id);
+    expect(next.expires).toBe(state.expires);
+  });
+});

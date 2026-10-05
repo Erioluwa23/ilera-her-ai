@@ -30,6 +30,10 @@ export async function POST(req: Request) {
       return twiml(
         `<Redirect method="POST">${route("record", token, { phase: "retry" })}</Redirect>`,
       );
+    if (form.Digits === "5" && state.profileId)
+      return twiml(
+        `<Redirect method="POST">${route("profile", token, { phase: "manage" })}</Redirect>`,
+      );
     if (form.Digits === "9")
       return twiml(`<Redirect method="POST">${route("incoming")}</Redirect>`);
     if (form.Digits === "3")
@@ -41,7 +45,7 @@ export async function POST(req: Request) {
         : say(job.result.text);
       return twiml(
         audio +
-          `<Gather input="dtmf" numDigits="1" action="${route("wait", token)}" method="POST" timeout="8">${prompt(state.language, "menu", "Press 1 to hear the response again. Press 2 to ask another question. Press 9 to change language. Press 3 to end the call.")}</Gather><Hangup/>`,
+          `<Gather input="dtmf" numDigits="1" action="${route("wait", token)}" method="POST" timeout="8">${prompt(state.language, state.profileId ? "history-menu" : "menu", "Press 1 to hear the response again. Press 2 to ask a follow-up question. " + (state.profileId ? "Press 5 to delete saved history. " : "") + "Press 9 to change language. Press 3 to end the call.")}</Gather><Hangup/>`,
       );
     }
     if (job?.status === "failed" || round >= 32)

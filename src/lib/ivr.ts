@@ -45,6 +45,9 @@ export type CallState = {
   language: IlaraLanguage;
   expires: number;
   consented: boolean;
+  callerKey?: string;
+  profileId?: string;
+  previous?: string;
 };
 export function publicOrigin() {
   const url = new URL(process.env.IVR_PUBLIC_BASE_URL || "");
@@ -97,6 +100,9 @@ export function readState(token: string, call?: string): CallState {
     Buffer.from(data, "base64url").toString(),
   ) as CallState;
   if (
+    (state.callerKey !== undefined && !/^[a-f0-9]{64}$/.test(state.callerKey)) ||
+    (state.profileId !== undefined && !/^[a-f0-9-]{36}$/.test(state.profileId)) ||
+    (state.previous !== undefined && !/^[a-f0-9-]{36}$/.test(state.previous)) ||
     !/^[a-f0-9-]{36}$/.test(state.id) ||
     !/^CA[a-f0-9]{32}$/i.test(state.call) ||
     !Object.values(DIGIT_LANGUAGE).includes(state.language) ||
@@ -219,7 +225,7 @@ export function configuration() {
     origin: false,
     secret: (process.env.IVR_SESSION_SECRET?.length || 0) >= 32,
     database: !!process.env.IVR_DATABASE_URL,
-    llm: !!process.env.NATLAS_LLM_API_URL || !!process.env.NATLAS_HF_LLM_SPACE,
+    llm: true, // The shared N-ATLaS runtime is the default provider.
   };
   try {
     publicOrigin();

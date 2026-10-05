@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { historyEnabled } from "@/lib/ivr-profiles";
 import {
   configuration,
   DIGIT_LANGUAGE,
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
         );
       const token = stateToken(form.CallSid, language);
       return twiml(
-        `<Gather input="dtmf" numDigits="1" action="${route("record", token, { phase: "consent" })}" method="POST" timeout="8">${prompt(language, "consent", "Your question will be recorded and processed by our speech and health services. The recording is deleted after processing. This is health information, not emergency care. Press 1 to agree and continue, or 2 to end the call.")}</Gather><Hangup/>`,
+        `<Gather input="dtmf" numDigits="1" action="${route("record", token, { phase: "consent" })}" method="POST" timeout="8">${prompt(language, "consent", "Your question will be recorded and processed by our speech and health services. The recording is deleted after processing. Questions and answers are temporarily stored for up to twenty minutes to support this call. This is health information, not emergency care. Press 1 to agree and continue, or 2 to end the call.")}</Gather><Hangup/>`,
       );
     }
     const token = url.searchParams.get("state") || "",
@@ -42,10 +44,25 @@ export async function POST(req: Request) {
     if (phase !== "consent" && phase !== "retry")
       return twiml(say("Invalid call step.") + "<Hangup/>");
     if (phase === "retry" && !state.consented) return failWebhook();
+    if (
+      phase === "consent" &&
+      historyEnabled(state.language) &&
+      /^\+[1-9]\d{6,14}$/.test(form.From || "")
+    ) {
+      return twiml(
+        `<Redirect method="POST">${route("profile", signState({ ...state, consented: true }))}</Redirect>`,
+      );
+    }
     // A retry gets a fresh job identifier; an old callback cannot replace a later answer.
     const next =
       phase === "retry"
-        ? stateToken(form.CallSid, state.language, true)
+        ? signState({
+            ...state,
+            id: randomUUID(),
+            previous: state.id,
+            callerKey: undefined,
+            consented: true,
+          })
         : signState({ ...state, consented: true });
     return twiml(
       `${prompt(state.language, "record", "After the beep, describe your menstrual health concern. Press hash when you finish. You have up to 45 seconds.")}<Record action="${route("wait", next)}" method="POST" recordingStatusCallback="${route("process", next)}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" maxLength="45" timeout="5" finishOnKey="#" playBeep="true" trim="trim-silence"/><Hangup/>`,

@@ -1,7 +1,8 @@
 import twilio from "twilio";
 import { NatlasSpeechProvider, NatlasLLMProvider } from "./natlas";
 import { answerQuestion, evidenceFor, localizeHealthAnswer } from "./knowledge";
-import { claim, finish, type JobResult } from "./ivr-jobs";
+import { callerHistory } from "./ivr-profiles";
+import { claim, finish, getJob, type JobResult } from "./ivr-jobs";
 import type { CallState } from "./ivr";
 async function boundedAudio(response: Response, max: number) {
   if (!response.ok || !response.body) throw new Error("Audio unavailable");
@@ -66,22 +67,64 @@ export async function runJob(state: CallState) {
       state.language,
       AbortSignal.timeout(90000),
     );
-    const grounded = answerQuestion(transcript.text, state.language),
-      localized = localizeHealthAnswer(grounded, state.language);
+    const history = await callerHistory(state);
+    const previous = state.previous
+      ? await getJob({ ...state, id: state.previous })
+      : null;
+    const reported =
+      previous?.result?.reported ||
+      (previous?.result?.question ? [previous.result.question] : []);
+    const conversation = reported.map((content) => ({ role: "user", content }));
+    const current = answerQuestion(transcript.text, state.language);
+    const candidates = reported.map((text) =>
+      answerQuestion(text, state.language),
+    );
+    const combined = reported.map((text) =>
+      answerQuestion(text + "\n" + transcript.text, state.language),
+    );
+    const grounded =
+      [...candidates, ...combined, current].find(
+        (answer) => answer.urgency === "urgent",
+      ) ||
+      (current.topic !== "unknown"
+        ? current
+        : [...candidates]
+            .reverse()
+            .find((answer) => answer.topic !== "unknown") || current);
+    const localized = localizeHealthAnswer(grounded, state.language);
     // Urgent care instructions stay source-grounded; generation cannot downgrade urgency.
-    const generated =
-      grounded.urgency === "urgent"
-        ? null
-        : await timed(
-            new NatlasLLMProvider().answer(
-              transcript.text,
-              evidenceFor(grounded),
-              state.language,
-            ),
-          );
+    let generated = null;
+    try {
+      generated =
+        grounded.urgency === "urgent"
+          ? null
+          : await timed(
+              new NatlasLLMProvider().answer(
+                transcript.text,
+                {
+                  ...evidenceFor(grounded),
+                  conversation,
+                  callerHistory: history,
+                  relatedEvidence: history.map((turn) =>
+                    evidenceFor(answerQuestion(turn.question, state.language)),
+                  ),
+                },
+                state.language,
+              ),
+            );
+    } catch {
+      /* Preserve reviewed guidance when generation is unavailable. */
+    }
     const text =
-      (generated?.text || localized.answer) + " " + localized.disclaimer;
-    const result: JobResult = { text };
+      (generated?.text ||
+        [localized.answer, ...localized.nextSteps].join(" ")) +
+      " " +
+      localized.disclaimer;
+    const result: JobResult = {
+      text,
+      question: transcript.text,
+      reported: [...reported, transcript.text].slice(-4),
+    };
     if (state.language !== "en-NG") {
       const url = new URL(process.env.IVR_TTS_API_URL || "");
       if (url.protocol !== "https:") throw new Error("TTS not configured");

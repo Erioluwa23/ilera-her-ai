@@ -1,3 +1,4 @@
+import { historyEnabled } from "@/lib/ivr-profiles";
 import twilio from "twilio";
 import { configuration } from "@/lib/ivr";
 import { databaseReady } from "@/lib/ivr-jobs";
@@ -53,6 +54,7 @@ export async function GET() {
         asrReachable: asr,
       },
       languages: config.languages,
+      historyLanguages: config.languages.filter(historyEnabled),
       phoneNumber: ready ? process.env.IVR_PHONE_NUMBER : null,
     },
     { headers: { "cache-control": "no-store" } },

@@ -5,6 +5,7 @@ type Status = {
   ready: boolean;
   phoneNumber: string | null;
   languages: IlaraLanguage[];
+  historyLanguages?: IlaraLanguage[];
 };
 export default function PhoneSupport() {
   const [status, setStatus] = useState<Status | null>(null),
@@ -33,7 +34,7 @@ export default function PhoneSupport() {
       <ol className="ivrSteps">
         <li>Choose your language using the keypad</li>
         <li>Agree to recording, then speak after the beep</li>
-        <li>Listen to guidance; replay or ask another question</li>
+        <li>Listen to guidance; replay or ask a follow-up question</li>
       </ol>
       {status?.ready && status.phoneNumber ? (
         <>
@@ -49,6 +50,13 @@ export default function PhoneSupport() {
           {error
             ? "Could not check phone availability. Please try later."
             : "The call service is being connected. A verified support number will appear here when it is ready."}
+        </p>
+      )}
+      {!!status?.historyLanguages?.length && (
+        <p className="small muted">
+          Optional saved history recognises your number. Use a six digit keypad
+          PIN to unlock earlier questions and advice for up to 30 days. Press 5
+          after a reply to delete it. You can also call without saved history.
         </p>
       )}
       <p className="small muted">
