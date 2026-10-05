@@ -2,7 +2,9 @@ import { normalizeLanguage } from "@/lib/languages";
 
 export async function POST(req: Request) {
   const origin = req.headers.get("origin");
-  if ((origin && origin !== new URL(req.url).origin) || req.headers.get("sec-fetch-site") === "cross-site") {
+  // Render terminates TLS before Next.js; use its server-provided public URL rather than forwarded headers.
+  const expectedOrigin = new URL(process.env.RENDER_EXTERNAL_URL || req.url).origin;
+  if ((origin && origin !== expectedOrigin) || req.headers.get("sec-fetch-site") === "cross-site") {
     return Response.json({ error: "Request not allowed" }, { status: 403 });
   }
   const configured = process.env.VOICE_TTS_API_URL;
