@@ -7,6 +7,7 @@ export async function GET() {
   const config = configuration();
   let database = false,
     asr = false,
+    llm = false,
     numberVerified = false;
   if (config.configured) {
     const result = await Promise.allSettled([
@@ -16,6 +17,11 @@ export async function GET() {
     database = result[0].status === "fulfilled" && result[0].value === true;
     if (result[1].status === "fulfilled") {
       const runtime = result[1].value;
+      // The shared text model must be loaded before publishing personalised phone support.
+      // A separately configured official endpoint is validated during operator acceptance calls.
+      llm =
+        !!process.env.NATLAS_LLM_API_URL ||
+        ("llmLoaded" in runtime && runtime.llmLoaded === true);
       asr =
         runtime.reachable === true &&
         runtime.gatedModelsAccessible === true &&
@@ -43,7 +49,7 @@ export async function GET() {
       );
     } catch {}
   }
-  const ready = config.configured && database && asr && numberVerified;
+  const ready = config.configured && database && asr && llm && numberVerified;
   return Response.json(
     {
       ready,
@@ -52,6 +58,7 @@ export async function GET() {
         databaseReachable: database,
         numberVerified,
         asrReachable: asr,
+        llmReady: llm,
       },
       languages: config.languages,
       historyLanguages: config.languages.filter(historyEnabled),
