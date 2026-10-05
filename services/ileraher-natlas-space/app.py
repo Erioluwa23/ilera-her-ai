@@ -138,7 +138,8 @@ try:
         torch_dtype=torch.float16, low_cpu_mem_usage=True,
     ).to("cuda").eval()
     GENERATION_STATUS.update(llmLoaded=True, llmModel=LLM_ID, llmRevision=llm_revision)
-except Exception:
+except Exception as error:
+    GENERATION_STATUS["llmFailure"] = type(error).__name__
     GENERATION_STATUS["llmError"] = "N-ATLaS unavailable. HF_TOKEN needs approved access to NCAIR1/N-ATLaS."
 try:
     GENERATION_STATUS["ttsStage"] = "dependencies"
@@ -173,7 +174,8 @@ try:
     AUDIO_TOKENIZER.device = torch.device("cuda")
     AUDIO_TOKENIZER.wavtokenizer = AUDIO_TOKENIZER.wavtokenizer.to("cuda").eval()
     GENERATION_STATUS.update(ttsLoaded=True, ttsStage="ready", ttsModel=TTS_ID, ttsRevision=tts_revision)
-except Exception:
+except Exception as error:
+    GENERATION_STATUS["ttsFailure"] = type(error).__name__
     GENERATION_STATUS["ttsError"] = "YarnGPT2b or its verified WavTokenizer decoder could not load."
 
 
