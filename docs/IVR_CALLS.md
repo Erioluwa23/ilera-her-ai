@@ -12,7 +12,7 @@ After an answer, authenticated callers can press 5 then 1 to permanently delete 
 
 ## Activation requirements
 
-Deployment alone does not allocate a number or activate phone calls. The existing Render workspace has no database configured for this feature. Configure these server-only variables from `.env.example`:
+Deployment alone does not allocate a number or activate phone calls. A free development PostgreSQL instance has been provisioned on Render; its app connection is still required. See [development database](DEVELOPMENT_DATABASE.md) for the resource and migration plan. Configure these server-only variables from `.env.example`:
 
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`: the account owning the number.
 - `IVR_PHONE_NUMBER`: an owned voice-capable E164 number. Provision it in your provider account with the required local registration. The setup script configures an existing number; it does not buy one.
