@@ -16,8 +16,12 @@ def main():
     if not token:
         raise RuntimeError("Add the HF_SPACE_WRITE_TOKEN GitHub Actions secret.")
     api = HfApi(token=token)
-    if api.whoami().get("name") != "Kolade1":
-        raise RuntimeError("The upload credential must belong to Kolade1.")
+    owner = api.whoami().get("name", "")
+    if owner.casefold() != "kolade1":
+        raise RuntimeError(
+            f"Upload token account: {owner!r}; expected Kolade1. "
+            "Replace HF_SPACE_WRITE_TOKEN with a token created under Kolade1."
+        )
     with urllib.request.urlopen(
         "https://huggingface.co/api/spaces/" + SPACE, timeout=30
     ) as response:
