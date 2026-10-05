@@ -1,46 +1,34 @@
-import {twiml,xmlEscape} from "@/lib/ivr";
-import {answerQuestion,evidenceFor,localizeHealthAnswer} from "@/lib/knowledge";
-import {normalizeLanguage} from "@/lib/languages";
-import {NatlasLLMProvider,NatlasSpeechProvider,huggingFaceToken} from "@/lib/natlas";
-
-function authHeader():Record<string,string>{
-  const sid=process.env.TWILIO_ACCOUNT_SID,token=process.env.TWILIO_AUTH_TOKEN;
-  if(!sid||!token)return {};
-  return {Authorization:"Basic "+Buffer.from(sid+":"+token).toString("base64")};
-}
-
-const speechLocale={ "en-NG":"en-NG",yo:"yo-NG",ha:"ha-NG",ig:"ig-NG" } as const;
-
-export async function POST(req:Request){
-  try{
-    const url=new URL(req.url);
-    const language=normalizeLanguage(url.searchParams.get("language"));
-    const form=await req.formData();
-    const recordingUrl=String(form.get("RecordingUrl")||"");
-    if(!recordingUrl)return twiml("<Say>We could not access your recording. Please try again.</Say>");
-
-    const audioRes=await fetch(recordingUrl+".wav",{headers:authHeader()});
-    if(!audioRes.ok)return twiml("<Say>We could not retrieve your recording. Please try again later.</Say>");
-    const audio=await audioRes.blob();
-
-    const transcript=await new NatlasSpeechProvider().transcribe(audio,language);
-    const grounded=answerQuestion(transcript.text,language);
-    const localized=localizeHealthAnswer(grounded,language);
-    let answer=localized.answer;
-    let disclaimer=localized.disclaimer;
-
-    if(process.env.NATLAS_LLM_API_URL||huggingFaceToken()){
-      try{
-        const generated=await new NatlasLLMProvider().answer(transcript.text,evidenceFor(grounded),language);
-        answer=generated.text;
-      }catch{}
+import { after } from "next/server";
+import { enqueue } from "@/lib/ivr-jobs";
+import { runJob } from "@/lib/ivr-worker";
+import { failWebhook, readState, webhook } from "@/lib/ivr";
+export async function POST(req: Request) {
+  try {
+    const form = await webhook(req),
+      state = readState(
+        new URL(req.url).searchParams.get("state") || "",
+        form.CallSid,
+      );
+    if (
+      !state.consented ||
+      form.RecordingStatus !== "completed" ||
+      !/^RE[a-f0-9]{32}$/i.test(form.RecordingSid || "")
+    )
+      return new Response(null, { status: 400 });
+    try {
+      await enqueue(state, form.RecordingSid);
+    } catch {
+      return new Response("Queue unavailable", { status: 503 });
     }
-
-    const spoken=xmlEscape(answer+" "+disclaimer);
-    return twiml(`<Say language="${speechLocale[language]}">${spoken}</Say><Hangup/>`);
-  }catch{
-    return twiml("<Say>We could not process your request. If your symptoms are severe or worrying, please seek medical care.</Say><Hangup/>");
+    after(async () => {
+      try {
+        await runJob(state);
+      } catch {
+        console.warn("IVR job could not start");
+      }
+    });
+    return new Response(null, { status: 204 });
+  } catch {
+    return failWebhook();
   }
 }
-
-export const GET=POST;

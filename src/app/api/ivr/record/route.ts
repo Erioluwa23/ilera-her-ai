@@ -1,24 +1,56 @@
-import {twiml} from "@/lib/ivr";
-import {IlaraLanguage} from "@/lib/languages";
-
-const digitLanguage:Record<string,IlaraLanguage>={"1":"en-NG","2":"yo","3":"ha","4":"ig"};
-
-export async function POST(req:Request){
-  const form=await req.formData();
-  const language=digitLanguage[String(form.get("Digits")||"1")]||"en-NG";
-  const origin=new URL(req.url).origin;
-  const prompts:Record<IlaraLanguage,string>={
-    "en-NG":"After the beep, describe your menstrual health question or symptom. Press the hash key when you finish.",
-    yo:"Lẹ́yìn ìró náà, sọ ìbéèrè tàbí àmì àìsàn rẹ nípa ìlera oṣù. Tẹ́ àmì hash nígbà tí o bá parí.",
-    ha:"Bayan karar, bayyana tambayarka ko alamarka game da lafiyar al'ada. Danna alamar hash idan ka gama.",
-    ig:"Mgbe ụda ahụ gasịrị, kwuo ajụjụ ma ọ bụ mgbaàmà gị gbasara ahụike ịhụ nsọ. Pịa hash mgbe ị mechara."
-  };
-  return twiml(
-    `<Say>${prompts[language]}</Say>
-     <Record action="${origin}/api/ivr/process?language=${encodeURIComponent(language)}" method="POST" maxLength="45" finishOnKey="#" playBeep="true" trim="trim-silence"/>
-     <Say>We did not receive a recording. Please try again.</Say>
-     <Redirect method="POST">${origin}/api/ivr/incoming</Redirect>`
-  );
+import {
+  configuration,
+  DIGIT_LANGUAGE,
+  failWebhook,
+  prompt,
+  readState,
+  route,
+  say,
+  stateToken,
+  signState,
+  twiml,
+  webhook,
+} from "@/lib/ivr";
+export async function POST(req: Request) {
+  try {
+    const form = await webhook(req);
+    if (!configuration().configured)
+      return twiml(say("Phone support is not available.") + "<Hangup/>");
+    const url = new URL(req.url),
+      phase = url.searchParams.get("phase");
+    if (phase === "language") {
+      const language = DIGIT_LANGUAGE[form.Digits];
+      if (!language)
+        return twiml(
+          say("That choice was not recognised.") +
+            `<Redirect method="POST">${route("incoming", undefined, { attempt: String(Math.min(3, Number(url.searchParams.get("attempt")) || 1)) })}</Redirect>`,
+        );
+      if (!configuration().languages.includes(language))
+        return twiml(
+          say("Audio support for that language is not ready yet.") +
+            `<Redirect method="POST">${route("incoming", undefined, { attempt: String(Math.min(3, Number(url.searchParams.get("attempt")) || 1)) })}</Redirect>`,
+        );
+      const token = stateToken(form.CallSid, language);
+      return twiml(
+        `<Gather input="dtmf" numDigits="1" action="${route("record", token, { phase: "consent" })}" method="POST" timeout="8">${prompt(language, "consent", "Your question will be recorded and processed by our speech and health services. The recording is deleted after processing. This is health information, not emergency care. Press 1 to agree and continue, or 2 to end the call.")}</Gather><Hangup/>`,
+      );
+    }
+    const token = url.searchParams.get("state") || "",
+      state = readState(token, form.CallSid);
+    if (phase === "consent" && form.Digits !== "1")
+      return twiml(prompt(state.language, "goodbye", "Goodbye.") + "<Hangup/>");
+    if (phase !== "consent" && phase !== "retry")
+      return twiml(say("Invalid call step.") + "<Hangup/>");
+    if (phase === "retry" && !state.consented) return failWebhook();
+    // A retry gets a fresh job identifier; an old callback cannot replace a later answer.
+    const next =
+      phase === "retry"
+        ? stateToken(form.CallSid, state.language, true)
+        : signState({ ...state, consented: true });
+    return twiml(
+      `${prompt(state.language, "record", "After the beep, describe your menstrual health concern. Press hash when you finish. You have up to 45 seconds.")}<Record action="${route("wait", next)}" method="POST" recordingStatusCallback="${route("process", next)}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" maxLength="45" timeout="5" finishOnKey="#" playBeep="true" trim="trim-silence"/><Hangup/>`,
+    );
+  } catch {
+    return failWebhook();
+  }
 }
-
-export const GET=POST;

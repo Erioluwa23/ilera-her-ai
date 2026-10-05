@@ -1,3 +1,4 @@
+import PhoneSupport from "@/components/PhoneSupport";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 export default function HelpPage() {
@@ -16,19 +17,7 @@ export default function HelpPage() {
             Open low-data voice →
           </Link>
         </article>
-        <article className="selectedDay">
-          <span className="pill">Phone calls · Coming soon</span>
-          <h2>Call from an ordinary phone</h2>
-          <ol className="ivrSteps">
-            <li>Choose Yorùbá, Hausa, Igbo or English</li>
-            <li>Record your concern after the beep</li>
-            <li>Listen to the response</li>
-          </ol>
-          <p className="muted">
-            A support number is not available yet. Call charges may apply when
-            the service launches.
-          </p>
-        </article>
+        <PhoneSupport />
         <div className="notice">
           <strong>When you need more care</strong>
           <p>
