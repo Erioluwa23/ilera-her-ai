@@ -4,9 +4,9 @@ let pool: Pool | null = null;
 let schemaReady: Promise<void> | null = null;
 
 export function getDb() {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL || process.env.IVR_DATABASE_URL;
   if (!connectionString) {
-    throw new Error("DATABASE_URL is not configured");
+    throw new Error("Database is not configured");
   }
   if (!pool) {
     pool = new Pool({
