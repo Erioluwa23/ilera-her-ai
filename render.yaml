@@ -12,3 +12,5 @@ services:
         value: "22"
       - key: HF_TOKEN
         sync: false
+      - key: AUTH_SECRET
+        sync: false
