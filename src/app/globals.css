@@ -1179,3 +1179,37 @@ footer {
     display: none;
   }
 }
+
+
+/* Feedback and admin reporting */
+.feedbackForm { display: grid; gap: 18px; margin-top: 24px; }
+.feedbackRating { border: 0; padding: 0; margin: 0; }
+.feedbackRating legend { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+.ratingButtons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.ratingButtons button { min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-weight: 800; }
+.ratingButtons button.active { background: var(--lemon); border-color: var(--ink); }
+.adminPanel { max-width: 1100px; margin-inline: auto; }
+.adminDashboard { display: grid; gap: 22px; margin-top: 26px; }
+.adminStats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.adminStats article { background: var(--soft); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.adminStats span, .adminStats small { display: block; color: var(--muted); font-size: 12px; }
+.adminStats strong { display: block; font-size: 30px; margin: 8px 0; }
+.adminSection { border: 1px solid var(--line); border-radius: 20px; padding: 20px; background: #fff; }
+.adminSection h2 { margin: 8px 0 18px; }
+.categoryBars { display: grid; gap: 12px; }
+.categoryBar { display: grid; grid-template-columns: 110px 1fr 36px; align-items: center; gap: 10px; font-size: 13px; }
+.categoryBar > div { height: 10px; background: var(--soft); border-radius: 999px; overflow: hidden; }
+.categoryBar i { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
+.feedbackTableWrap { overflow-x: auto; }
+.feedbackTable { width: 100%; border-collapse: collapse; min-width: 760px; font-size: 13px; }
+.feedbackTable th, .feedbackTable td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.feedbackTable th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.feedbackTable td:nth-child(5) { min-width: 280px; line-height: 1.45; }
+.feedbackTable select { min-width: 110px; padding: 8px; min-height: 38px; }
+@media (max-width: 760px) {
+  .adminStats { grid-template-columns: 1fr 1fr; }
+  .ratingButtons { grid-template-columns: repeat(5, minmax(48px, 1fr)); overflow-x: auto; }
+}
+@media (max-width: 420px) {
+  .adminStats { grid-template-columns: 1fr; }
+}
