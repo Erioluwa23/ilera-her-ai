@@ -4,10 +4,11 @@ import { Pool } from "pg";
 import { callHash, encryptResult, decryptResult, type CallState } from "./ivr";
 let pool: Pool | undefined, prepared: Promise<void> | undefined;
 export function database() {
-  if (!process.env.IVR_DATABASE_URL)
-    throw new Error("IVR database not configured");
+  const connectionString =
+    process.env.IVR_DATABASE_URL || process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("IVR database not configured");
   return (pool ??= new Pool({
-    connectionString: process.env.IVR_DATABASE_URL,
+    connectionString,
     max: 4,
     connectionTimeoutMillis: 3000,
     query_timeout: 4000,

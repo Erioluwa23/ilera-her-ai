@@ -12,11 +12,11 @@ After an answer, authenticated callers can press 5 then 1 to permanently delete 
 
 ## Activation requirements
 
-Deployment alone does not allocate a number or activate phone calls. A free development PostgreSQL instance has been provisioned on Render; its app connection is still required. See [development database](DEVELOPMENT_DATABASE.md) for the resource and migration plan. Configure these server-only variables from `.env.example`:
+Deployment alone does not allocate a number or activate phone calls. The free development PostgreSQL instance on Render is connected through the app's existing `DATABASE_URL`, which IVR also uses by default. See [development database](DEVELOPMENT_DATABASE.md) for the resource and migration plan. Configure these server-only variables from `.env.example`:
 
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`: the account owning the number.
 - `IVR_PHONE_NUMBER`: an owned voice-capable E164 number. Provision it in your provider account with the required local registration. The setup script configures an existing number; it does not buy one.
-- `IVR_DATABASE_URL`: PostgreSQL connection for durable jobs and profiles. Prefer an internal Render URL in the same region. Use a durable plan for real caller history; an expiring free database is unsuitable for long-term operation.
+- `IVR_DATABASE_URL`: optional separate PostgreSQL connection for durable jobs and profiles; defaults to the app's `DATABASE_URL`. Prefer an internal Render URL in the same region. Use a durable plan for real caller history; an expiring free database is unsuitable for long-term operation.
 - `IVR_PUBLIC_BASE_URL=https://ilera-her-ai.onrender.com`.
 - `IVR_SESSION_SECRET`: random 32+ character secret for 20-minute signed call state and temporary encrypted answers.
 - `IVR_PROFILE_SECRET`: a separate random 32+ character long-lived secret for caller hashes and encrypted health history. Preserve it across deploys. Rotation requires a planned migration; replacing it makes existing profiles inaccessible.

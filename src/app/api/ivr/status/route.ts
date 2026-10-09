@@ -9,13 +9,14 @@ export async function GET() {
     asr = false,
     llm = false,
     numberVerified = false;
-  if (config.configured) {
+  {
+    // Verify storage independently of phone activation so setup can be tested safely.
     const result = await Promise.allSettled([
-      databaseReady(),
-      inspectNatlasSpace(),
+      config.checks.database ? databaseReady() : Promise.resolve(false),
+      config.configured ? inspectNatlasSpace() : Promise.resolve(null),
     ]);
     database = result[0].status === "fulfilled" && result[0].value === true;
-    if (result[1].status === "fulfilled") {
+    if (result[1].status === "fulfilled" && result[1].value) {
       const runtime = result[1].value;
       // The shared text model must be loaded before publishing personalised phone support.
       // A separately configured official endpoint is validated during operator acceptance calls.

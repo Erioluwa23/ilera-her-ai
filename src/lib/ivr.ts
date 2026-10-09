@@ -224,7 +224,7 @@ export function configuration() {
     number: /^\+[1-9]\d{6,14}$/.test(process.env.IVR_PHONE_NUMBER || ""),
     origin: false,
     secret: (process.env.IVR_SESSION_SECRET?.length || 0) >= 32,
-    database: !!process.env.IVR_DATABASE_URL,
+    database: !!(process.env.IVR_DATABASE_URL || process.env.DATABASE_URL),
     llm: true, // The shared N-ATLaS runtime is the default provider.
   };
   try {

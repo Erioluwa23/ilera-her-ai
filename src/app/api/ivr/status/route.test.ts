@@ -39,6 +39,20 @@ beforeEach(() => {
   ]);
 });
 describe("phone availability", () => {
+  it("verifies the app database while phone calls remain disabled", async () => {
+    vi.stubEnv("IVR_ENABLED", "false");
+    vi.stubEnv("IVR_DATABASE_URL", "");
+    vi.stubEnv("DATABASE_URL", "postgresql://app-test");
+    const data = await (await GET()).json();
+    expect(data.ready).toBe(false);
+    expect(data.checks.database).toBe(true);
+    expect(data.checks.databaseReachable).toBe(true);
+    expect(data.phoneNumber).toBeNull();
+    expect(mocks.database).toHaveBeenCalledOnce();
+    expect(mocks.runtime).not.toHaveBeenCalled();
+    expect(mocks.numbers).not.toHaveBeenCalled();
+  });
+
   it("keeps the number unpublished when the default text model is not loaded", async () => {
     mocks.runtime.mockResolvedValue({
       reachable: true,
