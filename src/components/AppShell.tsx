@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Consent from "./Consent";
+import LogoutButton from "./LogoutButton";
 const ITEMS = [
   { href: "/cycle", icon: "⌂", label: "My cycle" },
   { href: "/voice", icon: "◉", label: "Speak" },
@@ -32,9 +33,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <Link className="pill" href="/lite" prefetch={false}>
-          Low-data voice ↗
-        </Link>
+        <div className="navAccount">
+          <Link className="pill" href="/lite" prefetch={false}>
+            Low-data voice ↗
+          </Link>
+          <LogoutButton />
+        </div>
       </header>
       <main id="screen" className="appScreen">
         {children}
