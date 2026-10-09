@@ -25,9 +25,14 @@ export default function HelpPage() {
             in-person care for severe or worrying symptoms.
           </p>
         </div>
-        <Link className="textlink linkbtn" href="/history">
-          Manage your private logs →
-        </Link>
+        <div className="screenActions">
+          <Link className="secondaryBtn" href="/feedback">
+            Share feedback
+          </Link>
+          <Link className="textlink linkbtn" href="/history">
+            Manage your private logs →
+          </Link>
+        </div>
       </section>
     </AppShell>
   );
