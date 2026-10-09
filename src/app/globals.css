@@ -1112,3 +1112,70 @@ footer {
   .voiceRecordBar { grid-template-columns: 44px minmax(0, 1fr); }
   .chatLanguageSelect { grid-column: 2; justify-self: end; width: 116px; }
 }
+
+
+/* Account access */
+.authPage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 18px;
+}
+.authCard {
+  width: min(100%, 480px);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  padding: 32px;
+  box-shadow: 0 16px 50px #164b3510;
+}
+.authBrand {
+  display: inline-block;
+  margin-bottom: 28px;
+}
+.authCard h1 {
+  font-size: clamp(30px, 6vw, 42px);
+  line-height: 1.08;
+  margin: 10px 0 14px;
+}
+.authForm {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0 18px;
+}
+.authError {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--red);
+  color: #842b2b;
+  font-size: 14px;
+}
+.authSwitch {
+  text-align: center;
+  font-size: 14px;
+}
+.navAccount {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logoutButton {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 9px 13px;
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 700;
+}
+@media (max-width: 760px) {
+  .authCard {
+    padding: 26px 20px;
+    border-radius: 22px;
+  }
+  .navAccount .logoutButton {
+    display: none;
+  }
+}
