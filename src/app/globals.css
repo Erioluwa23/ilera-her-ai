@@ -1213,3 +1213,129 @@ footer {
 @media (max-width: 420px) {
   .adminStats { grid-template-columns: 1fr; }
 }
+
+
+/* Feedback/admin component alignment */
+.feedbackRating {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.feedbackRating legend {
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.ratingButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ratingButtons button {
+  min-width: 52px;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 12px;
+  font-weight: 800;
+}
+.ratingButtons button.active {
+  background: var(--lemon);
+  border-color: var(--ink);
+}
+.adminDashboard {
+  display: grid;
+  gap: 24px;
+}
+.adminStats article {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+}
+.adminStats article span,
+.adminStats article small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.adminStats article strong {
+  display: block;
+  font-size: 28px;
+  margin: 7px 0 5px;
+}
+.adminSection {
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+}
+.categoryBars {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.categoryBar {
+  display: grid;
+  grid-template-columns: 110px 1fr 42px;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+.categoryBar > div {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--soft);
+}
+.categoryBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink);
+}
+.feedbackTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+}
+.feedbackTable {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+.feedbackTable th,
+.feedbackTable td {
+  padding: 12px 13px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+.feedbackTable th {
+  background: var(--soft);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.feedbackTable td:nth-child(5) {
+  max-width: 360px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.feedbackTable select {
+  min-width: 110px;
+  padding: 8px;
+  min-height: 38px;
+}
+@media (max-width: 760px) {
+  .categoryBar {
+    grid-template-columns: 90px 1fr 34px;
+  }
+  .mobileNav {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+  .mobileNav a {
+    flex: 1 0 64px;
+  }
+}
