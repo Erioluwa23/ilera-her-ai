@@ -8,6 +8,7 @@ const ITEMS = [
   { href: "/voice", icon: "◉", label: "Speak" },
   { href: "/history", icon: "▤", label: "My logs" },
   { href: "/help", icon: "?", label: "Help" },
+  { href: "/feedback", icon: "✦", label: "Feedback" },
 ];
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -37,6 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <Link className="pill" href="/lite" prefetch={false}>
             Low-data voice ↗
           </Link>
+          <Link className="pill adminShortcut" href="/admin" prefetch={false}>Admin</Link>
           <LogoutButton />
         </div>
       </header>
