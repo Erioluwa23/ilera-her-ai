@@ -68,4 +68,6 @@ after operator verification, activation, a recent gateway heartbeat, prompts and
 ASR/speech readiness. The number is never inferred from a user account number.
 
 The UI is `/settings/phone`, reachable from Help. Saved reply text is separate
-from browser-only chat/period records. Ratings feed the existing admin dashboard.
+from period records and browser chat history. Period/cycle APIs are not called by
+this pilot; dialogue context is limited to the current call. Ratings feed the
+existing admin dashboard.

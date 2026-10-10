@@ -35,9 +35,9 @@ this single-SIM pilot.
    deleted during maintenance. Optional played replies are encrypted, account
    scoped and expire after 30 days. No raw audio/PIN/transcript is logged.
 
-**Current app limitation:** period records and web chat history are stored in the
-browser. This service cannot read those records, predict from them, or silently
-claim they are available on the server. Follow-up context is limited to this call.
+**Current phone limitation:** this service does not read period records (earlier
+browser records or the newer account-stored cycle records) or web chat history.
+It does not predict from those records. Follow-up context is limited to this call.
 
 ## Components and deployment
 
