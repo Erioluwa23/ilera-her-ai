@@ -49,6 +49,18 @@ describe("Gradio byte upload and lifecycle",()=>{
     const c=client([{type:"data",data:[{...payload,model:"wrong"}]}]);
     await expect(transcribeViaNatlasSpace(wav(),"en-NG")).rejects.toMatchObject({code:"ASR_PROVENANCE"});expect(c.close).toHaveBeenCalled();expect(c.close_stream).toHaveBeenCalled();
   });
+  it("reports queued quota failures even when no data event arrives",async()=>{
+    const close=vi.fn(),close_stream=vi.fn();
+    // Match the installed SDK: it publishes status only when subscribed.
+    vi.spyOn(Client,"connect").mockImplementation(async(_reference,options)=>({
+      fetch:vi.fn(),close,
+      submit:()=>Object.assign((async function*(){
+        if(options?.events?.includes("status"))yield {type:"status",stage:"error",message:"ASR quota exhausted"};
+      })(),{cancel:vi.fn().mockResolvedValue(undefined),close_stream}),
+    }) as unknown as Client);
+    await expect(transcribeViaNatlasSpace(wav(),"en-NG")).rejects.toMatchObject({code:"ASR_QUOTA",status:429});
+    expect(close).toHaveBeenCalled();expect(close_stream).toHaveBeenCalled();
+  });
   it("cancels the submitted job on client cancellation",async()=>{
     const abort=new AbortController();
     const cancel=vi.fn().mockResolvedValue(undefined),close_stream=vi.fn(),close=vi.fn();

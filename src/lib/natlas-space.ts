@@ -18,7 +18,10 @@ export function natlasLlmSpaceId(){
 function clientOptions(){
   const token=huggingFaceToken();
   if(token&&!token.startsWith("hf_"))throw new AsrError("ASR_AUTH",503,"Invalid server Hugging Face credential format.");
-  return token?{token:token as `hf_${string}`,record_history:false}:{record_history:false};
+  // submit() reports only data by default. Subscribe to status so queued
+  // failures (including GPU quota) cannot disappear as an empty transcription.
+  const events: ("data"|"status")[]=["data","status"];
+  return token?{token:token as `hf_${string}`,events,record_history:false}:{events,record_history:false};
 }
 
 export function classifyAsrError(error:unknown):AsrError{
