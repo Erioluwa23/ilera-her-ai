@@ -42,10 +42,10 @@ export class NatlasSpeechProvider implements SpeechProvider{
  }
 }
 
-async function chatRequest(url:string,key:string|undefined,model:string,system:string,question:string,groundedContext:unknown){
+async function chatRequest(url:string,key:string|undefined,model:string,system:string,question:string,groundedContext:unknown,signal?:AbortSignal){
   const headers:Record<string,string>={"content-type":"application/json"};
   if(key)headers.Authorization=`Bearer ${key}`;
-  const res=await fetch(url,{method:"POST",headers,body:JSON.stringify({
+  const res=await fetch(url,{method:"POST",headers,signal,body:JSON.stringify({
     model,temperature:0.1,max_tokens:700,stream:false,
     messages:[
       {role:"system",content:system},
@@ -60,7 +60,7 @@ async function chatRequest(url:string,key:string|undefined,model:string,system:s
 }
 
 export class NatlasLLMProvider{
- async answer(question:string,groundedContext:unknown,language:SupportedLanguage="en-NG"):Promise<LlmAnswer>{
+ async answer(question:string,groundedContext:unknown,language:SupportedLanguage="en-NG",signal?:AbortSignal):Promise<LlmAnswer>{
   const configuredUrl=process.env.NATLAS_LLM_API_URL;
   const endpointKey=process.env.NATLAS_LLM_API_KEY;
   const model=process.env.NATLAS_LLM_MODEL||"NCAIR1/N-ATLaS";
@@ -86,11 +86,11 @@ export class NatlasLLMProvider{
   ].join(" ");
 
   if(configuredUrl){
-    const text=await chatRequest(configuredUrl,endpointKey,model,system,question,groundedContext);
+    const text=await chatRequest(configuredUrl,endpointKey,model,system,question,groundedContext,signal);
     return{text,model,provider:"self-hosted",natlas:true};
   }
 
-  const generated=await generateViaNatlasSpace(question,groundedContext,language,system);
+  const generated=await generateViaNatlasSpace(question,groundedContext,language,system,signal);
   return{text:generated.text,model,provider:"hf-space",natlas:true};
  }
 }

@@ -120,13 +120,13 @@ function structured(value:unknown):Record<string,unknown>{
   return value as Record<string,unknown>;
 }
 
-export async function generateViaNatlasSpace(question:string,groundedContext:unknown,language:SupportedLanguage,system:string){
+export async function generateViaNatlasSpace(question:string,groundedContext:unknown,language:SupportedLanguage,system:string,signal?:AbortSignal){
   return withAsrClient(async app=>{
     const result=await app.predict("/answer",[question,JSON.stringify(groundedContext),speechLanguageFromUi(language),system]);
     const data=structured((result.data as unknown[])[0]);
     if(data.model!=="NCAIR1/N-ATLaS"||data.provider!=="ileraher_zerogpu_llm"||data.language!==speechLanguageFromUi(language)||typeof data.text!=="string"||!data.text.trim())throw new Error("N-ATLaS answer verification failed");
     return {text:data.text.trim(),endpoint:"/answer",space:natlasSpaceId()};
-  },undefined,120000);
+  },signal,120000);
 }
 
 export function verifiedAudioUrl(value:unknown){

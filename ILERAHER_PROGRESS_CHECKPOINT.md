@@ -153,3 +153,15 @@ auto-deploy remains off. Deployment result will be recorded after confirmation.
   not an ancestor of published main. The preview Render app was not changed.
 - This deployment-result follow-up changes documentation only. The live application
   code remains 26323cd; automatic deployment stays off.
+# 2026-10-10 — separate SIM-call pilot
+
+Implemented the independently deployable service in `services/ileraher-sim-call`
+and authenticated registered-user adapter in `/api/phone`. Calling PIN/replies UI
+is `/settings/phone`, linked from Help. Existing account, N-ATLAS, YarnGPT2b,
+reviewed health logic and feedback features are reused. Browser-only period/chat
+records remain unavailable to phone calls; no fake server history is seeded.
+
+See `docs/sim-call/STATUS.md`, `docs/sim-call/API.md` and the service README for
+implementation, validation, deployment and exact activation dependencies. The
+pilot remains disabled/unverified until physical SIM-gateway acceptance; no
+example phone number is advertised. No paid resource was provisioned.

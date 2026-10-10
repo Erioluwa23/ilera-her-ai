@@ -1,0 +1,11 @@
+[ileraher-sim-inbound]
+; The gateway routes incoming mobile calls to 7000 and forwards the original caller ID.
+; No outbound Dial() route exists in this pilot.
+exten => 7000,1,NoOp(IleraHer SIM inbound)
+ same => n,Set(GROUP()=ileraher-sim)
+ same => n,GotoIf($[${GROUP_COUNT(ileraher-sim)}>1]?busy)
+ same => n,Set(TIMEOUT(absolute)=900)
+ same => n,AGI(agi://127.0.0.1:4573/ileraher)
+ same => n,Hangup()
+ same => n(busy),Busy(3)
+ same => n,Hangup()

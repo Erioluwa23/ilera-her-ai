@@ -2018,3 +2018,5 @@ a {
     height: var(--keyboard-height, 100dvh);
   }
 }
+.ux-phone-checkbox { display: flex; align-items: center; gap: .75rem; }
+.ux-phone-checkbox input { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; }

@@ -1,0 +1,7 @@
+[general]
+dateformat=%F %T
+
+[logfiles]
+; Keep verbose/debug OFF: AGI debug includes sensitive keypad digits and media paths.
+console => error,warning
+messages => error,warning

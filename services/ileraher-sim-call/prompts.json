@@ -1,0 +1,54 @@
+{
+  "en-NG": {
+    "consent": "Welcome to IleraHer. We process short voice recordings to answer your questions. This is health information, not an emergency service. Press 1 to agree and continue, or hang up.",
+    "pin": "Enter the six digit calling PIN you set in your IleraHer account. Use your keypad. This is different from your account password.",
+    "auth-failed": "We could not verify your number and calling PIN. Please try again. You can reset your calling PIN in the app. After five incorrect attempts, calling is locked for fifteen minutes.",
+    "record": "After the tone, ask your menstrual health question. You have thirty seconds. Press hash when you finish.",
+    "send": "Press 1 to send your question, 2 to record it again, or any other key to finish.",
+    "waiting": "Please wait while IleraHer prepares your reply.",
+    "menu": "Press 1 to hear the reply again, 2 to ask a follow up question, 3 to rate this call, or 9 to finish.",
+    "rating": "How helpful was the call? Press a number from 1 to 5. One means not helpful, five means very helpful.",
+    "rated": "Thank you. Your rating has been saved.",
+    "error": "IleraHer could not complete this call. Please try again later or use the app. If your symptoms are severe or worrying, seek care from a healthcare professional.",
+    "goodbye": "Thank you for calling IleraHer. Goodbye."
+  },
+  "yo": {
+    "consent": "Ẹ káàbọ̀ sí ÌleraHer. A ń ṣe àkọsílẹ̀ ohùn kúkúrú láti dáhùn ìbéèrè rẹ. Èyí jẹ́ àlàyé ìlera, kì í ṣe iṣẹ́ pàjáwìrì. Tẹ 1 láti gbà kí o sì tẹ̀síwájú, tàbí parí ìpè.",
+    "pin": "Tẹ PIN ìpè olónọ́mbà mẹ́fà tí o ṣètò nínú àkọọ́lẹ̀ ÌleraHer rẹ. Lo bọ́tìnì fóònù rẹ.",
+    "auth-failed": "A kò lè jẹ́rìí nọ́mbà àti PIN ìpè rẹ. Gbìyànjú lẹ́ẹ̀kan sí i. O lè tún PIN ìpè ṣètò nínú app. Lẹ́yìn ìgbìyànjú tí kò tọ́ márùn-ún, a dá ìpè dúró fún ìṣẹ́jú mẹ́ẹ̀ẹ́dógún.",
+    "record": "Lẹ́yìn ohun àmì, béèrè nípa ìlera òṣù rẹ. O ní ọgbọ̀n ìṣẹ́jú-àáyá. Tẹ àmì hash nígbà tí o parí.",
+    "send": "Tẹ 1 láti rán ìbéèrè rẹ, 2 láti tún gbà ohùn rẹ sílẹ̀, tàbí bọ́tìnì mìíràn láti parí.",
+    "waiting": "Jọ̀wọ́ dúró bí ÌleraHer ṣe ń pèsè èsì rẹ.",
+    "menu": "Tẹ 1 láti gbọ́ èsì lẹ́ẹ̀kan sí i, 2 láti béèrè sí i, 3 láti fún ìpè ní àmì, tàbí 9 láti parí.",
+    "rating": "Báwo ni ìpè ṣe ràn ọ́ lọ́wọ́? Tẹ nọ́mbà láti 1 sí 5. Ọ̀kan túmọ̀ sí kò ràn lọ́wọ́, márùn-ún túmọ̀ sí ó ràn lọ́wọ́ púpọ̀.",
+    "rated": "Ẹ ṣé. A ti fi àmì rẹ pamọ́.",
+    "error": "ÌleraHer kò lè parí ìpè yìí. Gbìyànjú nígbà mìíràn tàbí lo app. Bí àmì àìsàn rẹ bá le tàbí ń dà ọ́ láàmú, wá ìtọ́jú lọ́dọ̀ òṣìṣẹ́ ìlera.",
+    "goodbye": "Ẹ ṣé fún pípe ÌleraHer. Ó dàbọ̀."
+  },
+  "ha": {
+    "consent": "Barka da zuwa IleraHer. Muna sarrafa gajerun rikodin murya don amsa tambayoyinki. Wannan bayanin lafiya ne, ba sabis na gaggawa ba. Danna 1 don amincewa da ci gaba, ko kashe kira.",
+    "pin": "Shigar da PIN na kira mai lambobi shida da kika saita a asusun IleraHer. Yi amfani da maballan wayarki.",
+    "auth-failed": "Ba mu iya tabbatar da lambarki da PIN na kira ba. Sake gwadawa. Za ki iya sake saita PIN a app. Bayan kuskure sau biyar, ana kulle kira na mintuna goma sha biyar.",
+    "record": "Bayan sautin, yi tambaya game da lafiyar hailarki. Kina da daƙiƙa talatin. Danna hash idan kin gama.",
+    "send": "Danna 1 don aika tambayarki, 2 don sake yin rikodi, ko wani maballi don gamawa.",
+    "waiting": "Ki jira yayin da IleraHer ke shirya amsarki.",
+    "menu": "Danna 1 don sake sauraron amsa, 2 don tambayar ƙarin bayani, 3 don kimanta kira, ko 9 don gamawa.",
+    "rating": "Yaya kiran ya taimaka? Danna lamba daga 1 zuwa 5. Ɗaya na nufin bai taimaka ba, biyar na nufin ya taimaka sosai.",
+    "rated": "Na gode. An ajiye kimantawarki.",
+    "error": "IleraHer bai iya kammala wannan kira ba. Sake gwadawa daga baya ko amfani da app. Idan alamominki sun tsananta ko suna damunki, nemi kulawa daga ma'aikacin lafiya.",
+    "goodbye": "Na gode da kiran IleraHer. Sai anjima."
+  },
+  "ig": {
+    "consent": "Nnọọ na IleraHer. Anyị na-ahazi obere ndekọ olu iji zaa ajụjụ gị. Nke a bụ ozi ahụike, ọ bụghị ọrụ mberede. Pịa 1 iji kwenye ma gaa n'ihu, ma ọ bụ kwụsị oku.",
+    "pin": "Tinye PIN oku nwere ọnụọgụ isii ị haziri na akaụntụ IleraHer gị. Jiri bọtịnụ ekwentị gị.",
+    "auth-failed": "Anyị enweghị ike ikwenye nọmba gị na PIN oku. Gbalịa ọzọ. Ị nwere ike ịtọgharị PIN na app. Mgbe njehie ise gasịrị, a na-egbochi oku ruo nkeji iri na ise.",
+    "record": "Mgbe ụda gasịrị, jụọ ajụjụ gbasara ahụike oge nsọ gị. Ị nwere sekọnd iri atọ. Pịa hash mgbe ị gwụchara.",
+    "send": "Pịa 1 iji zipu ajụjụ gị, 2 iji dekọọ ọzọ, ma ọ bụ bọtịnụ ọzọ iji mechaa.",
+    "waiting": "Biko chere ka IleraHer na-akwadebe nzaghachi gị.",
+    "menu": "Pịa 1 iji nụ nzaghachi ọzọ, 2 iji jụọ ajụjụ ọzọ, 3 iji tụọ oku a, ma ọ bụ 9 iji mechaa.",
+    "rating": "Kedu ka oku si nyere gị aka? Pịa nọmba site na 1 ruo 5. Otu pụtara ọ nyeghị aka, ise pụtara ọ nyere aka nke ukwuu.",
+    "rated": "Daalụ. E chekwara ntule gị.",
+    "error": "IleraHer enweghị ike imecha oku a. Gbalịa ọzọ ma ọ bụ jiri app. Ọ bụrụ na mgbaàmà gị siri ike ma ọ bụ na-enye nsogbu, chọọ nlekọta n'aka onye ọrụ ahụike.",
+    "goodbye": "Daalụ maka ịkpọ IleraHer. Ka ọ dị."
+  }
+}

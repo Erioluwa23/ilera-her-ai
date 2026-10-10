@@ -1,0 +1,39 @@
+; LAN or VPN only. Replace both gateway addresses with the actual device's address.
+; Configure the gateway's Mobile-to-SIP route to extension 7000.
+; This is a fixed-peer inbound trunk: restrict traffic at BOTH host firewall and endpoint ACL.
+[global]
+type=global
+endpoint_identifier_order=ip,username
+
+[sim-transport]
+type=transport
+protocol=udp
+bind=0.0.0.0:5060
+
+[sim-gateway]
+type=endpoint
+transport=sim-transport
+context=ileraher-sim-inbound
+disallow=all
+allow=alaw,ulaw
+direct_media=no
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
+trust_id_inbound=yes
+allow_transfer=no
+identify_by=ip
+aors=sim-gateway
+deny=0.0.0.0/0
+permit=192.168.1.50/32
+
+[sim-gateway]
+type=aor
+contact=sip:192.168.1.50:5060
+qualify_frequency=30
+qualify_timeout=3
+
+[sim-gateway-identify]
+type=identify
+endpoint=sim-gateway
+match=192.168.1.50/32

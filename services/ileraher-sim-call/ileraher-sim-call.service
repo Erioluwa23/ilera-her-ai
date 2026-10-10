@@ -1,0 +1,24 @@
+[Unit]
+Description=IleraHer SIM Call API and FastAGI
+After=network-online.target asterisk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ileraher
+Group=asterisk
+WorkingDirectory=/opt/ileraher/service
+EnvironmentFile=/etc/ileraher-sim-call.env
+ExecStart=/opt/ileraher/venv/bin/uvicorn simcall.api:from_env --factory --host 127.0.0.1 --port 8078 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=5
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ileraher/media
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

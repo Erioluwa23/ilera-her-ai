@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useUI } from "@/lib/ui-language";
 import { languageName, type IlaraLanguage } from "@/lib/languages";
 import Icon from "./Icon";
+import Link from "next/link";
 type Status = {
   ready: boolean;
   phoneNumber: string | null;
@@ -13,8 +14,13 @@ export default function PhoneSupport() {
     { t } = useUI();
   useEffect(() => {
     const c = new AbortController();
-    fetch("/api/ivr/status", { signal: c.signal, cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
+    fetch("/api/phone/status", { signal: c.signal, cache: "no-store" })
+      .then(async (r) => {
+        const sim = r.ok ? await r.json() : null;
+        if (sim?.configured) return sim;
+        const legacy = await fetch("/api/ivr/status", { signal: c.signal, cache: "no-store" });
+        return legacy.ok ? legacy.json() : null;
+      })
       .then(setStatus)
       .catch(() => {});
     return () => c.abort();
@@ -39,6 +45,7 @@ export default function PhoneSupport() {
           <p>{t("verifiedNumber")}</p>
         </>
       )}
+      <Link className="ux-btn ux-secondary" href="/settings/phone"><Icon name="lock" />{t("phoneSetup")}</Link>
       <details>
         <summary>{t("more")}</summary>
         <p>
