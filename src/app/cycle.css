@@ -1,3 +1,6 @@
+.ux-cycle > .ux-dashboard-grid {
+  margin-bottom: 20px;
+}
 .ux-cycle-setup,
 .ux-prediction-panel {
   padding: 20px;

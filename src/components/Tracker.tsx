@@ -95,7 +95,6 @@ export default function Tracker() {
           {t("logToday")}
         </Link>
       </div>
-      <CycleSetup store={store} />
       {saved && (
         <p className="ux-success ux-toast" role="status">
           <Icon name="check" />
@@ -325,13 +324,16 @@ export default function Tracker() {
               </Link>
             )}
           </aside>
-          <CyclePredictionPanel store={store} />
           <aside className="ux-nurture ux-desktop-only">
             <Icon name="leaf" size={32} />
             <h2>{t("trackTalk")}</h2>
             <p>{t("healthInfo")}</p>
           </aside>
         </div>
+      )}
+      <CycleSetup store={store} />
+      {store.userId && store.preferences.consent && (
+        <CyclePredictionPanel store={store} />
       )}
     </section>
   );
