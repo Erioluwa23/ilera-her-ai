@@ -5,6 +5,7 @@ import type { PeriodStore } from "@/lib/period-store";
 import { useUI, type UIKey } from "@/lib/ui-language";
 import { displayDate, todayDate } from "@/lib/ui-utils";
 import { daysBetween } from "@/lib/cycle-prediction/engine";
+import { cycleContextKeys } from "@/lib/cycle-prediction/ui-rows";
 import Icon from "./Icon";
 import { useVoicePlayback } from "@/lib/use-voice-playback";
 
@@ -73,7 +74,9 @@ export default function CyclePredictionPanel({
         ? "needsReportedLength"
         : prediction.status === "history_needs_review"
           ? "reviewHistory"
-          : "predictionPaused";
+          : prediction.status === "context_needed"
+            ? "predictionContextNeeded"
+            : "predictionPaused";
   return (
     <section className="ux-prediction-panel" aria-label={t("cycleInsight")}>
       <div className="ux-prediction-heading">
@@ -189,7 +192,22 @@ export default function CyclePredictionPanel({
           )}
         </>
       ) : (
-        <p>{t(statusKey)}</p>
+        <>
+          {prediction.status === "context_paused" && (
+            <p>
+              {t("selectedCycleContext")}:{" "}
+              <strong>{t(cycleContextKeys[store.preferences.context])}</strong>
+            </p>
+          )}
+          <p>{t(statusKey)}</p>
+          {["context_needed", "context_paused", "needs_reported_length"].includes(
+            prediction.status,
+          ) && (
+            <Link className="ux-text-button" href="#cycle-preferences">
+              {t("cycleSetup")}
+            </Link>
+          )}
+        </>
       )}
       {!!review.length && (
         <div className="ux-gap-review">

@@ -10,6 +10,7 @@ import type {
   CycleContext,
   CyclePreferences,
 } from "@/lib/cycle-prediction/types";
+import { cycleContextKeys } from "@/lib/cycle-prediction/ui-rows";
 import { useUI, type UIKey } from "@/lib/ui-language";
 import { displayDate, todayDate } from "@/lib/ui-utils";
 import Dialog from "./Dialog";
@@ -67,7 +68,7 @@ export default function CycleSetup({ store }: { store: PeriodStore }) {
     };
     if (await store.setPreferences(p)) {
       setOpen(false);
-      setNotice(t("saved"));
+      setNotice(t("savedAccount"));
     }
   }
   if (!store.ready)
@@ -88,15 +89,6 @@ export default function CycleSetup({ store }: { store: PeriodStore }) {
         </button>
       </div>
     );
-  const options: [CycleContext, UIKey][] = [
-    ["not_provided", "contextUnknown"],
-    ["none", "contextNone"],
-    ["pregnancy", "contextPregnancy"],
-    ["postpartum", "contextPostpartum"],
-    ["breastfeeding", "contextBreastfeeding"],
-    ["hormonal", "contextHormonal"],
-    ["major_change", "contextChange"],
-  ];
   return (
     <section className="ux-cycle-setup">
       <div className="ux-cycle-setup-heading">
@@ -109,7 +101,11 @@ export default function CycleSetup({ store }: { store: PeriodStore }) {
             {store.preferences.consent ? t("savedAccount") : t("cycleStorage")}
           </p>
         </div>
-        <button className="ux-btn ux-secondary" onClick={preferences}>
+        <button
+          id="cycle-preferences"
+          className="ux-btn ux-secondary"
+          onClick={preferences}
+        >
           {store.preferences.consent ? t("cycleSetup") : t("enableCycles")}
         </button>
       </div>
@@ -193,7 +189,7 @@ export default function CycleSetup({ store }: { store: PeriodStore }) {
                 value={context}
                 onChange={(e) => setContext(e.target.value as CycleContext)}
               >
-                {options.map(([value, key]) => (
+                {Object.entries(cycleContextKeys).map(([value, key]) => (
                   <option key={value} value={value}>
                     {t(key)}
                   </option>
@@ -201,7 +197,13 @@ export default function CycleSetup({ store }: { store: PeriodStore }) {
               </select>
             </label>
             {context !== "none" && (
-              <p className="ux-small">{t("predictionPaused")}</p>
+              <p className="ux-small">
+                {t(
+                  context === "not_provided"
+                    ? "predictionContextNeeded"
+                    : "predictionPaused",
+                )}
+              </p>
             )}
             <label>
               {t("historyFrom")}

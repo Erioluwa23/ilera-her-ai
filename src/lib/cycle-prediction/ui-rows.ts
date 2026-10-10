@@ -1,3 +1,5 @@
+import type { CycleContext } from "./types";
+
 // Interface translations. Native-speaker review remains a release QA step.
 export const cycleRows = {
   lastCycleEstimate: [
@@ -236,6 +238,18 @@ export const cycleRows = {
     "An dakatar da hasashe. Za ki iya ci gaba da rubutu. Duba yanayin zagayenki kafin amfani da tsohon tarihi.",
     "A kwụsịrị atụmatụ. Ị ka nwere ike idekọ. Lelee ọnọdụ oge nsọ gị tupu iji akụkọ ochie ọzọ.",
   ],
+  predictionContextNeeded: [
+    "Estimates are paused because “Prefer not to say / unsure” is selected under “Anything affecting your cycle?”. You can update this choice in Cycle preferences and keep logging.",
+    "Àfojúsùn dúró nítorí a yan “Mi ò fẹ́ sọ / mi ò mọ̀” lábẹ́ “Ṣé ohun kan ń nípa lórí òṣù rẹ?”. O lè ṣàtúnṣe àṣàyàn yìí nínú Àwọn àṣàyàn òṣù, kí o sì máa ṣàkọsílẹ̀.",
+    "An dakatar da hasashe saboda an zaɓi “Ba na son faɗa / ban sani ba” a ƙarƙashin “Akwai abin da ke shafar zagayenki?”. Za ki iya sabunta wannan a Zaɓuɓɓukan zagaye kuma ki ci gaba da rubutu.",
+    "A kwụsịrị atụmatụ n'ihi na ahọpụtara “Achọghị m ịkọ / amaghị m” n'okpuru “Ọ dị ihe na-emetụta oge nsọ gị?”. Ị nwere ike ịgbanwe nhọrọ a na Nhọrọ oge nsọ ma nọgide na-ede ndekọ.",
+  ],
+  selectedCycleContext: [
+    "Your selected cycle context",
+    "Ipò òṣù tí o yàn",
+    "Yanayin zagaye da kika zaɓa",
+    "Ọnọdụ oge nsọ ị họọrọ",
+  ],
   reviewHistory: [
     "Review these gaps before we estimate",
     "Ṣàyẹ̀wò àlàfo yìí kí a tó ṣe àfojúsùn",
@@ -346,3 +360,13 @@ export const cycleRows = {
     "Ụbọchị mmalite oge nsọ a tụrụ na-eru nso. Ị nwere ike idekọ mgbe ọ malitere.",
   ],
 } as const;
+
+export const cycleContextKeys = {
+  not_provided: "contextUnknown",
+  none: "contextNone",
+  pregnancy: "contextPregnancy",
+  postpartum: "contextPostpartum",
+  breastfeeding: "contextBreastfeeding",
+  hormonal: "contextHormonal",
+  major_change: "contextChange",
+} as const satisfies Record<CycleContext, keyof typeof cycleRows>;

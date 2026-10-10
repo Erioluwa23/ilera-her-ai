@@ -3,7 +3,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Tracker from "./Tracker";
-import { DEFAULT_PREFERENCES } from "@/lib/cycle-prediction/types";
+import {
+  DEFAULT_PREFERENCES,
+  type CyclePreferences,
+} from "@/lib/cycle-prediction/types";
 import { predictNextPeriod } from "@/lib/cycle-prediction/engine";
 const prefs = {
   ...DEFAULT_PREFERENCES,
@@ -30,6 +33,8 @@ const logs = [
 let root: Root,
   host: HTMLDivElement,
   forecast = predictNextPeriod(logs, prefs, "2026-10-10"),
+  savedPreferences: CyclePreferences = { ...prefs },
+  savedLogs = logs,
   consent = true;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -38,21 +43,38 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-10T12:00:00Z"));
   forecast = predictNextPeriod(logs, prefs, "2026-10-10");
+  savedPreferences = { ...prefs };
+  savedLogs = logs;
   consent = true;
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value: function (this: HTMLDialogElement) {
+      this.open = true;
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value: function (this: HTMLDialogElement) {
+      this.open = false;
+    },
+  });
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async () =>
-        new Response(
-          JSON.stringify({
-            userId: "1",
-            revision: 2,
-            logs: consent ? logs : [],
-            preferences: { ...prefs, consent },
-            prediction: forecast,
-          }),
-        ),
-    ),
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.endsWith("preferences") && options?.method === "PUT") {
+        savedPreferences = JSON.parse(options.body as string).preferences;
+        forecast = predictNextPeriod(savedLogs, savedPreferences, "2026-10-10");
+      }
+      return new Response(
+        JSON.stringify({
+          userId: "1",
+          revision: 2,
+          logs: consent ? savedLogs : [],
+          preferences: { ...savedPreferences, consent },
+          prediction: forecast,
+        }),
+      );
+    }),
   );
   host = document.createElement("div");
   document.body.append(host);
@@ -118,10 +140,49 @@ describe("personalized calendar", () => {
     ).toHaveLength(4);
     expect(host.textContent).toContain("not a validated confidence interval");
   });
+  it("explains the default context pause and shows a first estimate after preferences are saved, with only one period", async () => {
+    savedLogs = [logs[0]];
+    savedPreferences = { ...prefs, context: "not_provided" };
+    forecast = predictNextPeriod(savedLogs, savedPreferences, "2026-10-10");
+    await mount();
+    const panel = () => host.querySelector(".ux-prediction-panel")!;
+    expect(forecast.status).toBe("context_needed");
+    expect(panel().textContent).toContain(
+      "“Prefer not to say / unsure” is selected",
+    );
+    expect(
+      host.querySelectorAll(".ux-calendar-grid .is-estimate"),
+    ).toHaveLength(0);
+    await act(async () => {
+      (host.querySelector("#cycle-preferences") as HTMLButtonElement).click();
+    });
+    const dialog = host.querySelector("dialog")!;
+    await act(async () => {
+      const select = dialog.querySelector("select")!;
+      select.value = "none";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => {
+      dialog
+        .querySelector("form")!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    expect(forecast.status).toBe("estimated");
+    expect(forecast.method).toBe("reported_length");
+    expect(forecast.completedCycles).toBe(0);
+    expect(panel().textContent).toContain("30 October 2026");
+    expect(panel().textContent).toContain("Preliminary estimate");
+    const estimates = host.querySelectorAll(".ux-calendar-grid .is-estimate");
+    expect(estimates).toHaveLength(1);
+    expect(estimates[0].textContent).toBe("30");
+  });
   it("keeps predictions paused and calendar estimates empty for relevant context", async () => {
+    savedPreferences = { ...prefs, context: "breastfeeding" };
     forecast = predictNextPeriod(
       logs,
-      { ...prefs, context: "breastfeeding" },
+      savedPreferences,
       "2026-10-10",
     );
     await mount();
@@ -129,6 +190,9 @@ describe("personalized calendar", () => {
       host.querySelectorAll(".ux-calendar-grid .is-estimate"),
     ).toHaveLength(0);
     expect(host.textContent).toContain("Estimates are paused");
+    expect(host.querySelector(".ux-prediction-panel")?.textContent).toContain(
+      "Your selected cycle context: Breastfeeding",
+    );
   });
   it("never displays shared browser records as account history", async () => {
     consent = false;

@@ -119,6 +119,10 @@ describe("consent and explicit browser migration", () => {
         },
       },
     });
+    expect(host.querySelector("dialog")).toBeNull();
+    expect(host.querySelector('[role="status"]')?.textContent).toBe(
+      "Saved privately to your account",
+    );
   });
   it("uploads nothing until selection and ownership are explicitly confirmed", async () => {
     preferences = { ...DEFAULT_PREFERENCES, consent: true };
