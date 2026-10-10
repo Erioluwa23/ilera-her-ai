@@ -188,3 +188,41 @@ This evidence follow-up changes documentation only; auto-deploy remains off.
 Concurrent cycle-prediction commit `b9a1dcfde06fea8a0d578b6f889407b5a58f68fd`
 is preserved when merging these notes. Its new account-stored period records are
 not wired into phone contexts; the pilot uses only the current call dialogue.
+
+# 2026-10-10 — private adaptive cycle prediction delivered
+
+Application commit `b9a1dcfde06fea8a0d578b6f889407b5a58f68fd` adds PACPE
+`pacpe-1.0.0` inside the existing Next.js server. It preserves the SIM pilot and
+queued speech-error fixes. Period logging/editing now uses authenticated,
+owner-scoped PostgreSQL APIs with explicit consent, encrypted health payloads,
+versioned forecasts, original-outcome evaluation, private export and deletion.
+Browser history requires a manual ownership-confirmed import; it is never
+silently uploaded. Missing records and relevant cycle context pause/reset dates.
+
+My Cycle and History use the API's actual calculated dates. The interactive
+calendar includes cautious reliability, overdue treatment and opt-in in-app
+reminders. Insight playback uses local device voices on demand; no cycle health
+payload is sent to an LLM or cloud speech provider. Prediction windows stay absent
+until at least six usable cycles and eight real prospective outcomes in the same
+model/history regime. See `docs/cycle-prediction/README.md` for policy and limits.
+
+CI run `38057223888` passed 337 app tests (including PostgreSQL 16 transactions),
+13 SIM-service Python tests, six model-runtime Python tests and the production
+build. Documentation-only revision `2828f2e9fcd299b82f51679aef9b02eb41249e9a`
+also passed CI `38057381094` and contains the same tested application code.
+Render `dep-db546jnlot8c73dlolug` became live on that exact combined revision at
+`2026-10-10T13:54:44.906304Z` on the original service. The dedicated encryption
+key is configured server-side and must remain stable; no value was committed or
+printed. No paid infrastructure or preview deployment was changed.
+
+Live HTTP checks: `/api/health` returned 200, `no-store`, model `pacpe-1.0.0` and
+`storageReady:true`; `/api/v1/cycles/prediction` returned 401,
+`private, no-store` and `sign_in_required` without authentication. The browser
+could not open the health page (`ERR_BLOCKED_BY_CLIENT`), so these checks used
+HTTP. Signed-in visual/device audio QA and native-speaker review are pending.
+Synthetic tests do not establish clinical accuracy; real pilot errors and later
+window coverage still need measurement. Phone cycle-history integration is not
+enabled. The rejected `d3c1c28` preview remains outside main.
+
+This deployment-evidence follow-up changes documentation only. Automatic Render
+deployment remains off; the live application code is the verified revision above.
