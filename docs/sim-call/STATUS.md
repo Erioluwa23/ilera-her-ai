@@ -167,3 +167,38 @@ context is limited to the call. This scope is explicit in the settings/README.
   response was a CloudFront 403/request-blocked page. A fresh model-page check
   still showed Log In, so no authenticated browser access is claimed. No model
   terms, new credential, subscription or paid capacity was changed through UI.
+
+## Post-repair live verification
+
+- Decoder repair commit `38e4cfe6b8899e1d57574a8d016caf94b6825230` passed
+  [CI run 38059443720](https://github.com/Erioluwa23/ilera-her-ai/actions/runs/38059443720):
+  341 app tests, 18 SIM-service tests, the production build and 10 runtime boundary
+  tests. [Upload run 38059443699](https://github.com/Erioluwa23/ilera-her-ai/actions/runs/38059443699)
+  succeeded; Space revision `bf08c2e019cfc645f3b76c77d1c69255ad5153cf` reached
+  RUNNING with that exact running revision. The Render adapter remains on
+  `f8459ac6cf86990f24ab87639a82594f46d0695e`; the later repair changes only its
+  separately deployed model runtime and delivery documentation.
+- Production `/api/health` now reports the four ASR models loaded,
+  `llmLoaded:true,llmAccess:true,ttsLoaded:true,ttsStage:ready`. This confirms
+  fresh startup successfully downloaded and verified the original decoder.
+- A fixed offline English control-menu WAV submitted through production
+  `/api/transcribe` returned 200 in 16,384 ms, with a non-empty transcript,
+  model `NCAIR1/NigerianAccentedEnglish` and provider `ileraher_zerogpu_asr`.
+  This is a synthetic smoke test, not human Nigerian-accent or narrowband
+  accuracy acceptance. Transcript and question audio were not retained.
+- Production `/api/voice/audio` synthesized only the fixed non-medical phrase
+  “This is an IleraHer phone integration test.” It returned 200 in 15,580 ms,
+  model `saheedniyi/YarnGPT2b`, mono 24 kHz WAV lasting 2.11 seconds. Actual
+  FFmpeg conversion to mono 8 kHz, 16-bit PCM succeeded. No listening/pronunciation
+  acceptance or carrier playback is inferred from a valid file. Test audio was
+  removed after the format check.
+- Speech compute was available for these two requests, unlike the earlier
+  quota failures. Daily free-GPU limits still apply; these successes do not
+  promise continuous capacity. The offline failure prompts and bounded timeouts
+  remain in place. Text-model inference latency/quality and all enabled-language
+  physical call tests still require acceptance.
+- To complete physical activation, supply the actual voice-capable gateway
+  model/address and an SSH-accessible Linux host on its LAN/private VPN, configure
+  matched service secrets securely, install/start the native service and run the
+  real-call acceptance matrix. Public verification remains false until that
+  test succeeds; no real incoming call has occurred through this implementation.
