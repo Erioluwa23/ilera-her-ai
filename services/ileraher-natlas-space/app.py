@@ -1,4 +1,5 @@
 """Owned ZeroGPU ASR, grounded N-ATLaS generation, and YarnGPT2b audio."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -33,6 +34,23 @@ def classify_llm_failure(error, config_access):
         "llmError": "N-ATLaS access is unauthorized. Configure an approved NATLAS_LLM_HF_TOKEN Space secret."
             if denied else "N-ATLaS could not load. Check runtime dependencies, memory and model configuration.",
     }
+
+
+def verified_decoder_checkpoint():
+    # The original filename was removed from main. Pin the original upload,
+    # whose bytes match the previously verified Google Drive checkpoint.
+    decoder = Path(hf_hub_download(
+        "novateur/WavTokenizer-large-speech-75token",
+        "wavtokenizer_large_speech_320_24k.ckpt",
+        revision="1cc9faee31025548fbae6ffe11115d7207093638", token=False,
+    ))
+    digest = hashlib.sha256()
+    with decoder.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    if digest.hexdigest() != "7450020c154f6aba033cb8651466cb79cb1b1cdd10ea64eaba68e7871cabcc5a":
+        raise ValueError("Decoder integrity check failed")
+    return decoder
 
 ASR_MODELS = {
     "english": "NCAIR1/NigerianAccentedEnglish",
@@ -163,8 +181,6 @@ except Exception as error:
     GENERATION_STATUS.update(classify_llm_failure(error, llm_config_access))
 try:
     GENERATION_STATUS["ttsStage"] = "dependencies"
-    import hashlib
-    import gdown
     from yarngpt.audiotokenizer import AudioTokenizerV2
     GENERATION_STATUS["ttsStage"] = "decoder-download"
     config = hf_hub_download(
@@ -172,17 +188,7 @@ try:
         "wavtokenizer_mediumdata_frame75_3s_nq1_code4096_dim512_kmeans200_attn.yaml",
         revision="8858552e69270816d6aeb37bfcf3b770769d4899",
     )
-    decoder = Path(os.environ.get("HF_HOME", "/tmp/ileraher-models")) / "wavtokenizer_large_speech_320_24k.ckpt"
-    decoder.parent.mkdir(parents=True, exist_ok=True)
-    if not decoder.exists():
-        gdown.download(id="1-ASeEkrn4HY49yZWHTASgfGFNXdVnLTt", output=str(decoder), quiet=True)
-    digest = hashlib.sha256()
-    with decoder.open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(block)
-    if digest.hexdigest() != "7450020c154f6aba033cb8651466cb79cb1b1cdd10ea64eaba68e7871cabcc5a":
-        decoder.unlink(missing_ok=True)
-        raise ValueError("Decoder integrity check failed")
+    decoder = verified_decoder_checkpoint()
     GENERATION_STATUS["ttsStage"] = "model-load"
     tts_config = hf_hub_download(TTS_ID, "config.json")
     tts_revision = Path(tts_config).parent.name

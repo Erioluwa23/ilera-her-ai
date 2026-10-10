@@ -135,3 +135,35 @@ context is limited to the call. This scope is explicit in the settings/README.
   among the connected services. SSH is installed locally, but no host address,
   SSH configuration or agent was supplied. Hugging Face's connector has read
   permissions; its browser session requires sign-in for account/model settings.
+
+## Controlled testing and runtime refresh
+
+- Activation code commit `f8459ac6cf86990f24ab87639a82594f46d0695e` passed
+  [CI run 38058524109](https://github.com/Erioluwa23/ilera-her-ai/actions/runs/38058524109):
+  341 app tests (including the cycle changes), 18 SIM-service tests, the production
+  build and 8 model-runtime boundary tests. Concurrent cycle UI commit
+  `77cb5c72c1470a1ed67aa2ec4a48b0f02a757687` was preserved before publishing.
+- Set `SIM_PHONE_ENABLED=true` for private operator acceptance while retaining
+  `SIM_PHONE_VERIFIED=false`. Render deployment `dep-db54fflckfvc738ubej0`
+  became live on the activation commit at `2026-10-10T14:13:51.224685Z`.
+  The public status still returned `ready:false,phoneNumber:null`; anonymous
+  requests to the new readiness endpoint returned 401. The number is configured
+  but public calling is not advertised or verified.
+- [Runtime upload 38058524145](https://github.com/Erioluwa23/ilera-her-ai/actions/runs/38058524145)
+  succeeded. Space revision `f73f30dba6a057d37d7d55bc5f49d21e71d7b4d0` reached
+  RUNNING. After refresh the existing credential **successfully loaded N-ATLaS**
+  (`llmLoaded:true,llmAccess:true`), as well as the four ASR models. The earlier
+  approval message was stale startup state; text-model approval is no longer an
+  activation blocker. The separate credential option remains available.
+- Fresh startup reported `ttsFailure:FileURLRetrievalError` at decoder-download.
+  The original WavTokenizer Hub upload at revision
+  `1cc9faee31025548fbae6ffe11115d7207093638` contains the same 1,754,880,958-byte
+  checkpoint with the previously verified SHA256. Its pinned download HEAD
+  returned 200. Speech startup now uses this original pinned source, with the
+  same integrity check before deserialization. Two additional boundary tests
+  check the pin/hash path and rejection of different bytes; all 10 pass.
+  Live post-repair model/speech verification is recorded below when complete.
+- A secure browser sign-in request was submitted, but Hugging Face's login
+  response was a CloudFront 403/request-blocked page. A fresh model-page check
+  still showed Log In, so no authenticated browser access is claimed. No model
+  terms, new credential, subscription or paid capacity was changed through UI.

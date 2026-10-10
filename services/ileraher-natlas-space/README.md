@@ -67,7 +67,7 @@ https://huggingface.co/docs/hub/spaces-zerogpu
 - `/synthesize(text, language)` uses `saheedniyi/YarnGPT2b` and its WavTokenizer decoder. Returns WAV audio plus verified model/language provenance. Defaults are idera (English) and female2 (Yoruba, Hausa, Igbo). Replies are capped at 180 words / 80 seconds; no silent truncation.
 - `/status` reports `llmLoaded`, `llmAccess`, `llmFailureCategory` and `ttsLoaded` independently. Access denial and dependency/memory/load failures are distinguished without exposing raw exceptions. A successful config read does not prove that all weights can load. These optional models initialize on CUDA at startup; missing access/decoder leaves ASR available. GPU work shares the existing serialization lock and free quota.
 
-The decoder uses the exact Google Drive download linked by the YarnGPT2b author, verified against SHA256 before deserialization. Decoder configuration is pinned to a Hub revision. See THIRD_PARTY.md for the tokenizer and decoder source/license notices.
+The decoder uses the original WavTokenizer Hub upload at revision `1cc9faee31025548fbae6ffe11115d7207093638`, whose SHA256 matches the Google Drive checkpoint linked by the YarnGPT2b author. The historical revision keeps the original filename available after its removal from main and avoids the Google Drive retrieval failure observed on restart. Both checkpoint and configuration are pinned; checkpoint integrity is verified before deserialization. See THIRD_PARTY.md for the tokenizer and decoder source/license notices.
 
 Client integration defaults to this owned Space without new Render secrets. The voice chat saves the reply audio on the device for replay/download/sharing. Existing external VOICE_TTS_API_URL remains an explicit override.
 
