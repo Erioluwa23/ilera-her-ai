@@ -58,6 +58,12 @@ export default function CyclePredictionPanel({
     voice.stop();
   }, [spoken, language, voice.stop]);
   if (!prediction || !store.preferences.consent) return null;
+  const historyFrom = store.preferences.historyStartDate;
+  const historyExcluded =
+    prediction.status === "needs_last_period" &&
+    historyFrom !== null &&
+    store.logs.length > 0 &&
+    store.logs.every((log) => log.startDate < historyFrom);
   const overdue =
     !!prediction.predictedDate &&
     (prediction.windowEnd || prediction.predictedDate) < today;
@@ -199,13 +205,45 @@ export default function CyclePredictionPanel({
               <strong>{t(cycleContextKeys[store.preferences.context])}</strong>
             </p>
           )}
-          <p>{t(statusKey)}</p>
-          {["context_needed", "context_paused", "needs_reported_length"].includes(
-            prediction.status,
-          ) && (
-            <Link className="ux-text-button" href="#cycle-preferences">
-              {t("cycleSetup")}
-            </Link>
+          {historyExcluded && historyFrom ? (
+            <>
+              <p>
+                {t("historyExcluded")}:{" "}
+                <strong>{displayDate(historyFrom, locale)}</strong>
+              </p>
+              <p className="ux-small">{t("historyRestartHelp")}</p>
+              <div className="ux-actions">
+                <button
+                  className="ux-btn ux-secondary"
+                  disabled={store.busy}
+                  onClick={() =>
+                    void store.setPreferences({
+                      ...store.preferences,
+                      historyStartDate: null,
+                    })
+                  }
+                >
+                  <Icon name="calendar" />
+                  {t("useAllHistory")}
+                </button>
+                <Link className="ux-text-button" href="#cycle-preferences">
+                  {t("cycleSetup")}
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>{t(statusKey)}</p>
+              {[
+                "context_needed",
+                "context_paused",
+                "needs_reported_length",
+              ].includes(prediction.status) && (
+                <Link className="ux-text-button" href="#cycle-preferences">
+                  {t("cycleSetup")}
+                </Link>
+              )}
+            </>
           )}
         </>
       )}

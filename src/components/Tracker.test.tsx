@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Tracker from "./Tracker";
+import PeriodHistory from "./PeriodHistory";
 import {
   DEFAULT_PREFERENCES,
   type CyclePreferences,
@@ -86,9 +87,9 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
-async function mount() {
+async function mount(screen = <Tracker />) {
   await act(async () => {
-    root.render(<Tracker />);
+    root.render(screen);
   });
 }
 describe("personalized calendar", () => {
@@ -194,6 +195,50 @@ describe("personalized calendar", () => {
       "Your selected cycle context: Breastfeeding",
     );
   });
+  it.each(["calendar", "logs"] as const)(
+    "restores an estimate on %s when the user includes periods excluded by a restart date",
+    async (screen) => {
+      savedLogs = ["2026-09-24", "2026-08-20", "2026-07-24"].map(
+        (startDate, i) => ({
+          ...logs[0],
+          id: "history" + i,
+          startDate,
+          endDate: startDate,
+        }),
+      );
+      savedPreferences = { ...prefs, historyStartDate: "2026-10-10" };
+      forecast = predictNextPeriod(savedLogs, savedPreferences, "2026-10-10");
+      await mount(screen === "calendar" ? <Tracker /> : <PeriodHistory />);
+      const panel = () => host.querySelector(".ux-prediction-panel")!;
+      expect(forecast.status).toBe("needs_last_period");
+      expect(panel().textContent).toContain("All saved periods start before");
+      expect(panel().textContent).toContain("10 Oct 2026");
+      expect(panel().textContent).not.toContain("Log the first day");
+      if (screen === "logs")
+        expect(host.querySelectorAll(".ux-period-row")).toHaveLength(3);
+      await act(async () => {
+        Array.from(panel().querySelectorAll("button"))
+          .find((button) => button.textContent?.includes("Use all saved periods"))!
+          .click();
+      });
+      expect(savedPreferences).toEqual({ ...prefs, historyStartDate: null });
+      expect(forecast.status).toBe("estimated");
+      expect(forecast.completedCycles).toBe(2);
+      expect(panel().textContent).toContain("24 October 2026");
+      expect(savedLogs).toHaveLength(3);
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/v1/cycles/preferences",
+        expect.objectContaining({ method: "PUT" }),
+      );
+      if (screen === "calendar") {
+        const estimates = host.querySelectorAll(
+          ".ux-calendar-grid .is-estimate",
+        );
+        expect(estimates).toHaveLength(1);
+        expect(estimates[0].textContent).toBe("24");
+      }
+    },
+  );
   it("never displays shared browser records as account history", async () => {
     consent = false;
     localStorage.setItem("ileraher-periods-v2", JSON.stringify(logs));

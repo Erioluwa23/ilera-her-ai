@@ -143,6 +143,43 @@ describe("cycle PostgreSQL transactions and account isolation", () => {
       expect(row.payload).not.toContain("Fixture private note");
     }
   });
+  it("retains excluded periods and recalculates the saved estimate when the user removes a history restart date", async () => {
+    await saveCyclePreferences(
+      "1",
+      { ...preferences, historyStartDate: "2026-10-10" },
+      0,
+      "2026-10-10",
+    );
+    for (const [id, start] of [
+      ["september", "2026-09-24"],
+      ["august", "2026-08-20"],
+      ["july", "2026-07-24"],
+    ])
+      await savePeriod("1", log(id, start), "2026-10-10");
+    const before = await readCycleState("1", "2026-10-10");
+    expect(before.logs).toHaveLength(3);
+    expect(before.prediction).toMatchObject({
+      status: "needs_last_period",
+      predictedDate: null,
+      completedCycles: 0,
+    });
+    const after = await saveCyclePreferences(
+      "1",
+      { ...before.preferences, historyStartDate: null },
+      before.revision,
+      "2026-10-10",
+    );
+    expect(after.logs).toEqual(before.logs);
+    expect(after.prediction).toMatchObject({
+      status: "estimated",
+      predictedDate: "2026-10-24",
+      completedCycles: 2,
+      accuracy: { evaluated: 0 },
+    });
+    expect((await readCycleState("1", "2026-10-10")).prediction).toEqual(
+      after.prediction,
+    );
+  });
   it("rejects overlap without storing a partial mutation or forecast", async () => {
     await setup();
     const first = await savePeriod(

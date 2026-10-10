@@ -56,6 +56,10 @@ export default function CycleSetup({ store }: { store: PeriodStore }) {
     setNotice("");
     setOpen(true);
   }
+  const historyExcluded =
+    from !== "" &&
+    store.logs.length > 0 &&
+    store.logs.every((log) => log.startDate < from);
   async function save(event: React.FormEvent) {
     event.preventDefault();
     const p: CyclePreferences = {
@@ -215,6 +219,21 @@ export default function CycleSetup({ store }: { store: PeriodStore }) {
               />
             </label>
             <p className="ux-small">{t("historyFromHint")}</p>
+            {historyExcluded && (
+              <div role="status" className="ux-alert">
+                <p>
+                  {t("historyExcluded")}:{" "}
+                  <strong>{displayDate(from, locale)}</strong>
+                </p>
+                <button
+                  type="button"
+                  className="ux-btn ux-secondary"
+                  onClick={() => setFrom("")}
+                >
+                  {t("useAllHistory")}
+                </button>
+              </div>
+            )}
             <label className="ux-check-label">
               <input
                 type="checkbox"

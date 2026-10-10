@@ -22,6 +22,12 @@ The existing English, Yoruba, Hausa and Igbo UI catalogue covers these controls.
 Native-speaker and signed-in device/visual QA are still required; automated tests
 do not establish medical accuracy or human-reviewed translations.
 
+The optional tracking restart date excludes periods that began before it. If it
+excludes every saved period, the insight shows the actual cutoff and offers
+**Use all saved periods**. This explicit action removes only the cutoff and saves
+a recalculated prediction; it preserves all period records and cycle-context
+choices. The preferences form warns before saving a date that excludes everything.
+
 ## Statistical policy
 
 - A completed cycle is the difference between successive period **start** dates.
