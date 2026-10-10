@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Flower } from "./Icon";
+import { useUI } from "@/lib/ui-language";
+import { LANGUAGE_OPTIONS, type IlaraLanguage } from "@/lib/languages";
 
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
+  const { t, language, setLanguage } = useUI();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -17,7 +21,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     event.preventDefault();
     setError("");
     if (signup && password !== confirm) {
-      setError("Passwords do not match.");
+      setError(t("passwordMismatch"));
       return;
     }
 
@@ -36,7 +40,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       router.replace("/");
       router.refresh();
     } catch {
-      setError("Could not connect. Check your internet connection and try again.");
+      setError(t("offlineHint"));
     } finally {
       setBusy(false);
     }
@@ -46,23 +50,31 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     <main className="authPage">
       <section className="authCard" aria-labelledby="auth-title">
         <Link className="brand authBrand" href={signup ? "/signup" : "/login"}>
-          ÌleraHer <span>AI</span>
+          <Flower size={40} /> ÌleraHer
         </Link>
         <span className="eyebrow">
-          {signup ? "Create your private account" : "Welcome back"}
+          {signup ? t("createAccount") : t("welcomeBack")}
         </span>
-        <h1 id="auth-title">
-          {signup ? "Access ÌleraHer with your phone number." : "Sign in to ÌleraHer."}
-        </h1>
-        <p className="muted">
-          {signup
-            ? "Use a phone number you can remember. Your password is stored securely and is never shown back to you."
-            : "Enter the phone number and password you used when creating your account."}
-        </p>
+        <h1 id="auth-title">{signup ? t("createAccount") : t("signIn")}</h1>
+        <p className="muted">{signup ? t("createHint") : t("signInHint")}</p>
 
+        <label className="ux-auth-language">
+          {t("language")}
+          <select
+            value={language}
+            aria-label={t("chooseLanguage")}
+            onChange={(e) => setLanguage(e.target.value as IlaraLanguage)}
+          >
+            {LANGUAGE_OPTIONS.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <form className="authForm" onSubmit={submit}>
           <label>
-            Phone number
+            {t("phoneNumber")}
             <input
               type="tel"
               autoComplete="tel"
@@ -74,7 +86,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
             />
           </label>
           <label>
-            Password
+            {t("password")}
             <input
               type="password"
               autoComplete={signup ? "new-password" : "current-password"}
@@ -87,7 +99,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </label>
           {signup && (
             <label>
-              Confirm password
+              {t("confirmPassword")}
               <input
                 type="password"
                 autoComplete="new-password"
@@ -105,19 +117,17 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
             </p>
           )}
           <button className="btn fullWidth" disabled={busy} type="submit">
-            {busy ? "Please wait…" : signup ? "Create account" : "Sign in"}
+            {busy ? t("loading") : signup ? t("createAccount") : t("signIn")}
           </button>
         </form>
 
         <p className="authSwitch">
-          {signup ? "Already have an account?" : "New to ÌleraHer?"}{" "}
+          {signup ? t("alreadyAccount") : t("newHere")}{" "}
           <Link href={signup ? "/login" : "/signup"}>
-            {signup ? "Sign in" : "Create an account"}
+            {signup ? t("signIn") : t("createAccount")}
           </Link>
         </p>
-        <small className="muted">
-          ÌleraHer provides health information and does not replace professional medical care.
-        </small>
+        <small className="muted">{t("healthInfo")}</small>
       </section>
     </main>
   );

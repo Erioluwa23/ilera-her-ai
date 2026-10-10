@@ -1,0 +1,172 @@
+{
+  "colors": {
+    "ink": "#30213F",
+    "muted": "#73667F",
+    "plum": "#573C78",
+    "purple": "#76529B",
+    "lilac": "#E9DDF6",
+    "pale": "#F3EDF9",
+    "bg": "#FBF8FD",
+    "line": "#E6DFEC",
+    "white": "#FFFFFF",
+    "rose": "#F9E4EC",
+    "berry": "#A34368",
+    "mint": "#E9F2EC",
+    "green": "#376449",
+    "peach": "#FAEDDF",
+    "amber": "#885A25",
+    "red": "#A83E50"
+  },
+  "typography": {
+    "family": "system-ui, -apple-system, Segoe UI, sans-serif",
+    "body": 16,
+    "label": 14,
+    "metadata": 12,
+    "heading": 28,
+    "hero": 34,
+    "lineHeight": 1.5
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48
+  ],
+  "radii": {
+    "card": 20,
+    "button": 16,
+    "pill": 999
+  },
+  "targets": {
+    "action": 48,
+    "calendar": 44
+  },
+  "breakpoints": {
+    "mobile": "<768",
+    "tablet": "768–1023",
+    "desktop": ">=1024"
+  },
+  "motion": {
+    "durationMs": 180,
+    "reducedMotion": "none"
+  },
+  "screens": [
+    {
+      "id": "01-cycle",
+      "title": "My cycle",
+      "description": "Calendar, period status and daily logging with a clear estimate.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "02-chat",
+      "title": "Chat",
+      "description": "Voice messages, readable transcripts and a fixed composer.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "03-recording",
+      "title": "Recording a voice message",
+      "description": "Voice messages, readable transcripts and a fixed composer.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "04-review",
+      "title": "Review before sending",
+      "description": "Listen, edit transcription or re-record before asking the AI.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "05-logs",
+      "title": "My logs",
+      "description": "A compact timeline of period and symptom records.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "06-log",
+      "title": "Log a period",
+      "description": "One short form with dates, pictorial flow, pain and symptom chips.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "07-help",
+      "title": "Help and support",
+      "description": "Low-data voice, care guidance, privacy and feedback in one calm hub.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "08-feedback",
+      "title": "Share feedback",
+      "description": "A quick rating, a clear category and one optional comment.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "09-lite",
+      "title": "Low-data voice",
+      "description": "A quiet, lightweight voice-first view with no autoplay.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "10-privacy",
+      "title": "Privacy and language",
+      "description": "Honest browser storage and clear service-processing disclosure.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "11-welcome",
+      "title": "Welcome and language choice",
+      "description": "Optional setup, a language choice and immediate access.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "12-empty",
+      "title": "Cycle without logs",
+      "description": "A friendly invitation with no invented cycle numbers or predictions.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "13-success",
+      "title": "Feedback received",
+      "description": "A brief reassuring confirmation with a clear way back.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "14-offline",
+      "title": "Chat while offline",
+      "description": "Voice messages, readable transcripts and a fixed composer.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "15-consent",
+      "title": "Before your first recording",
+      "description": "Explain audio processing before recording, with a text alternative.",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "16-desktop",
+      "title": "Desktop cycle dashboard",
+      "description": "An expanded layout with a navigation rail, calendar and daily detail.",
+      "width": 1280,
+      "height": 820
+    }
+  ]
+}

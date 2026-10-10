@@ -111,3 +111,25 @@ Run 37326759383 (commit 5517bba3ffff09d9c8d87bdbc9faccd884bf48e6), upload job 11
 After user replaced the GitHub secret, agent retried failed jobs in run 37327583141. Latest upload job 111827793385 completed successfully. Four runtime files uploaded atomically at Space revision e6bf53134e5c820043331990a055b0cfa71621fd. Public Hub metadata independently confirms README.md, app.py, requirements.txt, packages.txt plus original .gitattributes; stage BUILDING; ZeroGPU requested, current hardware null. No tokens were read or printed. No Space secret or hardware settings were changed. Build completion, actual hardware allocation, runtime HF_TOKEN availability/gated-model access and four real speech tests remain unverified. Next: check build/startup, have user securely add a separate read-only model-authorized HF_TOKEN Space secret if missing, and verify /status before inference. Upload credential belongs only in GitHub Actions and is not the runtime read token.
 
 Startup follow-up: build completed, but runtime moved to RUNTIME_ERROR at the same Space revision. Public Hub errorMessage explicitly reports app.py line 18: "Server-side HF_TOKEN Space secret is required." Public /config returns HTTP 503. Confirmed next blocker is a missing HF_TOKEN Space secret, not the GitHub upload credential. User must add the separately gated-model-authorized read token in the existing Gradio Space's Settings → Secrets, then verify startup again. No inference tests can run yet.
+
+## 2026-10-10 — product engineer design package implementation
+
+Implemented the latest supplied 16-screen design on main, directly after 5dea08e.
+See docs/ui-ux/VERIFICATION.md for the implementation, tests and actual QA limits.
+The original handoff and exact tokens are retained in docs/ui-ux. No sample health
+records are seeded. Existing browser period/voice storage and required model/IVR
+integrations are preserved; preview/d3c1c28 is not merged or deployed.
+
+Final validation: production build/TypeScript, 223 JavaScript tests and six Python
+runtime lifecycle tests. Workflow tests verify that stop/60-second stop never uploads,
+transcription and Send are explicit, offline drafts remain unsent, storage failure
+never claims saved, and edited daily records preserve other episodes/earlier notes.
+Initial new-test issues (button wording, mock timer installation and a test's Storage
+this type) were corrected. An empty audio src warning and draft-write ordering were
+also corrected. Native translation review and signed-in browser/device screenshots
+remain pending: local cloud-browser connection is refused, and secure app sign-in
+was taken over without an observed successful session. No model-inference or incoming
+phone-call success is inferred from this frontend work.
+
+Target deployment: existing original service srv-dart3h8u01pc73dpngdg, branch main,
+auto-deploy remains off. Deployment result will be recorded after confirmation.

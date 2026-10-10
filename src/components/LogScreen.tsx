@@ -1,12 +1,12 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import { validDate } from "@/lib/calendar";
+import { todayDate } from "@/lib/ui-utils";
 import PeriodLogForm from "./PeriodLogForm";
 export default function LogScreen() {
   const search = useSearchParams(),
-    requested = search.get("date") ?? "";
-  const date = validDate(requested)
-    ? requested
-    : new Date().toISOString().slice(0, 10);
-  return <PeriodLogForm key={date} initialDate={date} />;
+    requested = search.get("date") || "",
+    id = search.get("id") || undefined,
+    date = validDate(requested) ? requested : todayDate();
+  return <PeriodLogForm key={id || date} initialDate={date} recordId={id} />;
 }

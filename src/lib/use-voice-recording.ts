@@ -19,6 +19,10 @@ export function useVoiceRecording() {
   const mounted = useRef(true);
   const controller = useRef<AbortController | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [paused, setPaused] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const [levels, setLevels] = useState<number[]>([]);
+  const elapsed = useRef(0);
   const [recording, setRecording] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -28,12 +32,14 @@ export function useVoiceRecording() {
       mounted.current = false;
       controller.current?.abort();
       if (timer.current) clearTimeout(timer.current);
-      if (recorder.current?.state === "recording") recorder.current.stop();
+      if (recorder.current && recorder.current.state !== "inactive")
+        recorder.current.stop();
       stream.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
   function stop() {
-    if (recorder.current?.state === "recording") recorder.current.stop();
+    if (recorder.current && recorder.current.state !== "inactive")
+      recorder.current.stop();
   }
   async function start(
     language: IlaraLanguage,
@@ -47,6 +53,10 @@ export function useVoiceRecording() {
     if (active.current) return;
     active.current = true;
     setBusy(true);
+    setPaused(false);
+    setSeconds(0);
+    setLevels([]);
+    elapsed.current = 0;
     setError("");
     const abort = new AbortController();
     controller.current = abort;
@@ -78,7 +88,8 @@ export function useVoiceRecording() {
         if (e.data.size) chunks.push(e.data);
       };
       r.onerror = () => {
-        setError("Audio recording failed.");
+        abort.abort();
+        setError("Audio recording failed. Please record again.");
         stop();
       };
       r.onstop = async () => {
@@ -110,7 +121,6 @@ export function useVoiceRecording() {
       };
       r.start();
       setRecording(true);
-      timer.current = setTimeout(stop, 60000);
     } catch {
       media.getTracks().forEach((track) => track.stop());
       active.current = false;
@@ -125,7 +135,8 @@ export function useVoiceRecording() {
   function cancel() {
     controller.current?.abort();
     if (timer.current) clearTimeout(timer.current);
-    if (recorder.current?.state === "recording") recorder.current.stop();
+    if (recorder.current && recorder.current.state !== "inactive")
+      recorder.current.stop();
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
     active.current = false;
@@ -133,7 +144,73 @@ export function useVoiceRecording() {
     setBusy(false);
     setError("");
   }
-  return { recording, busy, error, start, stop, cancel };
+  function pause() {
+    if (recorder.current?.state === "recording") {
+      recorder.current.pause();
+      setPaused(true);
+    }
+  }
+  function resume() {
+    if (recorder.current?.state === "paused") {
+      recorder.current.resume();
+      setPaused(false);
+    }
+  }
+  useEffect(() => {
+    if (!recording || paused) return;
+    let previous = performance.now();
+    const interval = setInterval(() => {
+      const now = performance.now();
+      elapsed.current += now - previous;
+      previous = now;
+      setSeconds(Math.min(60, Math.floor(elapsed.current / 1000)));
+      if (elapsed.current >= 60000) stop();
+    }, 100);
+    let context: AudioContext | undefined;
+    let frame = 0;
+    try {
+      context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      const source = context.createMediaStreamSource(stream.current!);
+      source.connect(analyser);
+      const samples = new Uint8Array(analyser.fftSize);
+      let sampled = 0;
+      const tick = () => {
+        if (performance.now() - sampled > 100) {
+          analyser.getByteTimeDomainData(samples);
+          const rms = Math.sqrt(
+            samples.reduce((sum, v) => sum + ((v - 128) / 128) ** 2, 0) /
+              samples.length,
+          );
+          setLevels((old) => [...old.slice(-29), Math.min(1, rms * 6)]);
+          sampled = performance.now();
+        }
+        frame = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      /* Recording remains available when live visualisation is unsupported. */
+    }
+    return () => {
+      clearInterval(interval);
+      cancelAnimationFrame(frame);
+      void context?.close();
+    };
+  }, [recording, paused]);
+  return {
+    recording,
+    busy,
+    error,
+    start,
+    stop,
+    cancel,
+    paused,
+    pause,
+    resume,
+    seconds,
+    levels,
+  };
 }
 
 export function speakResponse(text: string, language: IlaraLanguage): boolean {

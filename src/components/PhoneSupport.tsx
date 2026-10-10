@@ -1,68 +1,50 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useUI } from "@/lib/ui-language";
 import { languageName, type IlaraLanguage } from "@/lib/languages";
+import Icon from "./Icon";
 type Status = {
   ready: boolean;
   phoneNumber: string | null;
   languages: IlaraLanguage[];
-  historyLanguages?: IlaraLanguage[];
 };
 export default function PhoneSupport() {
   const [status, setStatus] = useState<Status | null>(null),
-    [error, setError] = useState(false);
+    { t } = useUI();
   useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/ivr/status", { signal: controller.signal, cache: "no-store" })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
+    const c = new AbortController();
+    fetch("/api/ivr/status", { signal: c.signal, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
       .then(setStatus)
-      .catch(() => {
-        if (!controller.signal.aborted) setError(true);
-      });
-    return () => controller.abort();
+      .catch(() => {});
+    return () => c.abort();
   }, []);
   return (
-    <article className="selectedDay">
-      <span className="pill">
-        {status?.ready
-          ? "Phone calls · Available"
-          : "Phone calls · Setup in progress"}
-      </span>
-      <h2>Call from an ordinary phone</h2>
-      <ol className="ivrSteps">
-        <li>Choose your language using the keypad</li>
-        <li>Agree to recording, then speak after the beep</li>
-        <li>Listen to guidance; replay or ask a follow-up question</li>
-      </ol>
+    <article className="ux-phone-card">
+      <div>
+        <Icon name="phone" />
+        <h2>{t("phone")}</h2>
+      </div>
       {status?.ready && status.phoneNumber ? (
         <>
-          <a className="btn" href={"tel:" + status.phoneNumber}>
-            Call {status.phoneNumber}
+          <a className="ux-btn" href={"tel:" + status.phoneNumber}>
+            <Icon name="phone" />
+            {status.phoneNumber}
           </a>
-          <p className="muted">
-            Languages: {status.languages.map(languageName).join(", ")}
-          </p>
+          <p>{status.languages.map(languageName).join(", ")}</p>
         </>
       ) : (
-        <p className="muted" role="status">
-          {error
-            ? "Could not check phone availability. Please try later."
-            : "The call service is being connected. A verified support number will appear here when it is ready."}
-        </p>
+        <>
+          <span className="ux-badge">{t("comingSoon")}</span>
+          <p>{t("verifiedNumber")}</p>
+        </>
       )}
-      {!!status?.historyLanguages?.length && (
-        <p className="small muted">
-          Optional saved history recognises your number. Use a six digit keypad
-          PIN to unlock earlier questions and advice for up to 30 days. Press 5
-          after a reply to delete it. You can also call without saved history.
+      <details>
+        <summary>{t("more")}</summary>
+        <p>
+          {t("healthInfo")}. {t("callCharges")}
         </p>
-      )}
-      <p className="small muted">
-        No mobile data needed for a phone call. Network and international call
-        charges may apply. This service does not provide emergency care.
-      </p>
+      </details>
     </article>
   );
 }

@@ -9,6 +9,14 @@ export type PeriodLog = {
   pain: number;
   notes?: string;
   symptoms?: string[];
+  ongoing?: boolean;
+  entries?: {
+    date: string;
+    flow: Flow;
+    pain: number;
+    symptoms?: string[];
+    notes?: string;
+  }[];
 };
 const KEY = "ileraher-periods-v2",
   LEGACY = "ileraher-cycle-v1",
@@ -55,6 +63,11 @@ function parse(raw: string): PeriodLog[] {
   }
 }
 export function usePeriodLogs() {
+  const ready = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const raw = useSyncExternalStore(subscribe, snapshot, () => "[]");
   const logs = useMemo(() => parse(raw), [raw]);
   const [error, setError] = useState("");
@@ -80,11 +93,13 @@ export function usePeriodLogs() {
       localStorage.removeItem(LEGACY);
       window.dispatchEvent(new Event(EVENT));
       setError("");
+      return true;
     } catch {
       setError(
         "Could not delete local records. Check your browser storage settings.",
       );
+      return false;
     }
   }
-  return { logs, error, persist, clear };
+  return { logs, error, persist, clear, ready };
 }

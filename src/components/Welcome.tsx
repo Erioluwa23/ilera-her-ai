@@ -1,52 +1,75 @@
 "use client";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LANGUAGE_OPTIONS } from "@/lib/languages";
-import { useLanguage } from "@/lib/use-language";
+import { useUI } from "@/lib/ui-language";
+import Icon, { Flower } from "./Icon";
 export default function Welcome() {
-  const { language, setLanguage } = useLanguage();
+  const { t, language, setLanguage } = useUI(),
+    router = useRouter(),
+    [ready, setReady] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("ileraher-onboarding-v2") === "done") {
+        const last =
+          localStorage.getItem("ileraher-last-screen-v1") || "/cycle";
+        router.replace(
+          [
+            "/cycle",
+            "/voice",
+            "/history",
+            "/help",
+            "/lite",
+            "/settings/privacy",
+          ].includes(last)
+            ? last
+            : "/cycle",
+        );
+        return;
+      }
+    } catch {}
+    setReady(true);
+  }, [router]);
+  function finish(route: string) {
+    try {
+      localStorage.setItem("ileraher-onboarding-v2", "done");
+    } catch {}
+    router.push(route);
+  }
+  if (!ready)
+    return (
+      <p role="status" className="ux-loading">
+        {t("loading")}
+      </p>
+    );
   return (
-    <section className="welcomeScreen panel">
-      <span className="eyebrow">Welcome to ÌleraHer</span>
-      <h1>
-        Menstrual support,
-        <br />
-        in your language.
-      </h1>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="welcomeArt"
-        src="/images/welcome.webp"
-        width="480"
-        height="270"
-        alt="Woman in a green headwrap and lemon-coloured top"
-      />
-      <h2>Choose your language</h2>
-      <p className="muted">Speak comfortably. You can change this anytime.</p>
-      <div
-        className="welcomeLanguages"
-        role="group"
-        aria-label="Choose language"
-      >
-        {LANGUAGE_OPTIONS.map((x) => (
-          <button
-            key={x.code}
-            className={
-              language === x.code ? "languageChoice active" : "languageChoice"
-            }
-            aria-pressed={language === x.code}
-            onClick={() => setLanguage(x.code)}
-          >
-            <span>{x.label}</span>
-            <span aria-hidden="true">{language === x.code ? "●" : "○"}</span>
-          </button>
-        ))}
-      </div>
-      <Link className="btn linkbtn fullWidth" href="/voice" prefetch={false}>
-        Continue to voice support →
-      </Link>
-      <Link className="textlink" href="/cycle" prefetch={false}>
-        View my cycle
-      </Link>
+    <section className="ux-welcome">
+      <Flower size={116} />
+      <h1>ÌleraHer</h1>
+      <h2>{t("yourRhythm")}</h2>
+      <p>{t("trackTalk")}</p>
+      <fieldset>
+        <legend>{t("chooseLanguage")}</legend>
+        <div className="ux-language-choices">
+          {LANGUAGE_OPTIONS.map((x) => (
+            <button
+              key={x.code}
+              className={language === x.code ? "is-active" : ""}
+              aria-pressed={language === x.code}
+              onClick={() => setLanguage(x.code)}
+            >
+              {x.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <button className="ux-btn ux-full" onClick={() => finish("/cycle")}>
+        <Icon name="arrow" />
+        {t("getStarted")}
+      </button>
+      <button className="ux-text-button" onClick={() => finish("/voice")}>
+        {t("explore")}
+      </button>
     </section>
   );
 }

@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
       request.cookies.get(sessionCookie.name)?.value,
     );
     if (!session) {
-      return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Please sign in first." },
+        { status: 401 },
+      );
     }
 
     const body = await request.json();
@@ -29,14 +32,23 @@ export async function POST(request: NextRequest) {
     const message = String(body?.message || "").trim();
 
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      return NextResponse.json({ error: "Choose a rating from 1 to 5." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Choose a rating from 1 to 5." },
+        { status: 400 },
+      );
     }
     if (!CATEGORIES.has(category)) {
-      return NextResponse.json({ error: "Choose a valid feedback category." }, { status: 400 });
-    }
-    if (message.length < 3 || message.length > 2000) {
       return NextResponse.json(
-        { error: "Feedback must be between 3 and 2000 characters." },
+        { error: "Choose a valid feedback category." },
+        { status: 400 },
+      );
+    }
+    if ((message.length > 0 && message.length < 3) || message.length > 2000) {
+      return NextResponse.json(
+        {
+          error:
+            "Leave the comment empty or use between 3 and 2000 characters.",
+        },
         { status: 400 },
       );
     }
@@ -50,7 +62,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    console.error("[feedback] submission failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "[feedback] submission failed",
+      error instanceof Error ? error.message : "unknown",
+    );
     return NextResponse.json(
       { error: "Feedback could not be saved right now." },
       { status: 500 },

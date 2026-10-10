@@ -1,194 +1,915 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { LANGUAGE_OPTIONS, type IlaraLanguage } from "@/lib/languages";
-import { useLanguage } from "@/lib/use-language";
+import { useUI } from "@/lib/ui-language";
+import { useOnline } from "@/lib/ui-utils";
 import { useVoiceRecording } from "@/lib/use-voice-recording";
-import { useVoicePlayback } from "@/lib/use-voice-playback";
 import { contextFor, type VoiceMessage } from "@/lib/voice-chat";
-import { loadVoiceMessages, saveVoiceMessage, deleteVoiceConversation } from "@/lib/voice-chat-store";
+import {
+  loadVoiceMessages,
+  saveVoiceMessage,
+  deleteVoiceConversation,
+  deleteVoiceMessage,
+} from "@/lib/voice-chat-store";
 import VoiceMessageCard from "./VoiceMessageCard";
-const PROMPTS: Record<IlaraLanguage, string> = {
-  "en-NG": "Your voice, your conversation",
-  yo: "Ohùn rẹ, ìjíròrò rẹ",
-  ha: "Muryarki, tattaunawarki",
-  ig: "Olu gị, mkparịta ụka gị",
-};
+import AudioPlayer from "./AudioPlayer";
+import Dialog from "./Dialog";
+import Icon, { Flower } from "./Icon";
+const TYPED = "ileraher-text-draft-v1:";
+const ACTIVE = "ileraher-active-conversation-v1",
+  CONSENT = "ileraher-voice-consent-v2",
+  NAMES = "ileraher-conversation-names-v1";
 export default function VoiceLog({ compact = false }: { compact?: boolean }) {
-  const { language, setLanguage } = useLanguage(), voice = useVoiceRecording(), playback = useVoicePlayback();
-  const [messages, setMessages] = useState<VoiceMessage[]>([]), [savedIds, setSavedIds] = useState<string[]>([]);
-  const [conversationId, setConversationId] = useState(""), [replyTo, setReplyTo] = useState<string>();
-  const [loaded, setLoaded] = useState(false), [processing, setProcessing] = useState(false);
-  const [status, setStatus] = useState(""), [error, setError] = useState(""), [storageError, setStorageError] = useState("");
-  const [seconds, setSeconds] = useState(0), [playingId, setPlayingId] = useState<string>(), [deletePending, setDeletePending] = useState(false);
-  const currentMessages = useRef<VoiceMessage[]>([]), controller = useRef<AbortController | null>(null), mounted = useRef(true), active = useRef(false);
-  const composer = useRef<HTMLDivElement>(null);
-  const busy = voice.busy || processing;
+  const { t, language, setLanguage, locale } = useUI(),
+    online = useOnline(),
+    voice = useVoiceRecording();
+  const [messages, setMessages] = useState<VoiceMessage[]>([]),
+    [saved, setSaved] = useState<string[]>([]),
+    [thread, setThread] = useState(""),
+    [loaded, setLoaded] = useState(false),
+    [parent, setParent] = useState<string>(),
+    [processing, setProcessing] = useState(false),
+    [status, setStatus] = useState(""),
+    [error, setError] = useState(""),
+    [storageError, setStorageError] = useState("");
+  const [draftId, setDraftId] = useState<string>(),
+    [words, setWords] = useState(""),
+    [disclosure, setDisclosure] = useState(false),
+    [typing, setTyping] = useState(false),
+    [typed, setTyped] = useState(""),
+    [history, setHistory] = useState(false),
+    [search, setSearch] = useState(""),
+    [deleteId, setDeleteId] = useState<string>(),
+    [renameId, setRenameId] = useState<string>(),
+    [newName, setNewName] = useState(""),
+    [names, setNames] = useState<Record<string, string>>({}),
+    [newReply, setNewReply] = useState(false);
+  const writes = useRef<Promise<void>>(Promise.resolve());
+  const items = useRef<VoiceMessage[]>([]),
+    alive = useRef(true),
+    lock = useRef(false),
+    abort = useRef<AbortController | null>(null),
+    timeline = useRef<HTMLDivElement>(null),
+    nearBottom = useRef(true);
+  const busy = processing || voice.busy,
+    draft = messages.find((m) => m.id === draftId);
   useEffect(() => {
-    mounted.current = true;
-    loadVoiceMessages().then(items => {
-      if (!mounted.current) return;
-      currentMessages.current = items;
-      setMessages(items); setSavedIds(items.map(m => m.id));
-      setConversationId(items.at(-1)?.conversationId || crypto.randomUUID());
-    }).catch(() => {
-      if (!mounted.current) return;
-      setStorageError("Saved conversations could not be opened. New messages will stay in this tab until storage is available.");
-      setConversationId(crypto.randomUUID());
-    }).finally(() => { if (mounted.current) setLoaded(true); });
-    return () => { mounted.current = false; controller.current?.abort(); };
+    alive.current = true;
+    loadVoiceMessages()
+      .then((data) => {
+        if (!alive.current) return;
+        items.current = data;
+        setMessages(data);
+        setSaved(data.map((m) => m.id));
+        let last: string | null = null;
+        try {
+          last = localStorage.getItem(ACTIVE);
+          setNames(JSON.parse(localStorage.getItem(NAMES) || "{}"));
+        } catch {}
+        const chosen =
+          last || data.at(-1)?.conversationId || crypto.randomUUID();
+        setThread(chosen);
+        const unsent = data.filter((m) => m.draft && !m.confirmed).at(-1);
+        if (unsent) {
+          setThread(unsent.conversationId);
+          setDraftId(unsent.id);
+          setWords(unsent.text || "");
+        } else {
+          try {
+            const cached = JSON.parse(
+              localStorage.getItem(TYPED + chosen) || "null",
+            );
+            if (
+              cached &&
+              typeof cached.text === "string" &&
+              cached.text.trim()
+            ) {
+              setTyped(cached.text);
+              setParent(cached.parent);
+              setTyping(true);
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {
+        if (alive.current) {
+          setStorageError(t("storageUnavailable"));
+          setThread(crypto.randomUUID());
+        }
+      })
+      .finally(() => {
+        if (alive.current) setLoaded(true);
+      });
+    if (new URLSearchParams(location.search).has("history")) setHistory(true);
+    return () => {
+      alive.current = false;
+      abort.current?.abort();
+    };
   }, []);
   useEffect(() => {
-    if (!voice.recording) return;
-    const timer = setInterval(() => setSeconds(v => v + 1), 1000);
-    return () => clearInterval(timer);
-  }, [voice.recording]);
+    if (thread)
+      try {
+        localStorage.setItem(ACTIVE, thread);
+      } catch {}
+  }, [thread]);
+  useEffect(() => {
+    if (nearBottom.current) {
+      timeline.current?.scrollTo({ top: timeline.current.scrollHeight });
+    } else setNewReply(true);
+  }, [messages, thread]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const baseline = window.innerHeight;
+    if (!viewport) return;
+    const update = () => {
+      const focused = document.activeElement;
+      const textFocused =
+        focused?.tagName === "TEXTAREA" ||
+        (focused?.tagName === "INPUT" &&
+          ["text", "search", "tel", "email", "password", "number"].includes(
+            (focused as HTMLInputElement).type,
+          ));
+      const keyboard =
+        textFocused &&
+        Math.max(baseline, window.innerHeight) - viewport.height > 160;
+      const root = document.querySelector(".ux-app");
+      root?.classList.toggle("ux-keyboard", keyboard);
+      (root as HTMLElement)?.style.setProperty(
+        "--keyboard-height",
+        `${viewport.height}px`,
+      );
+    };
+    viewport.addEventListener("resize", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      document.querySelector(".ux-app")?.classList.remove("ux-keyboard");
+    };
+  }, []);
   async function put(message: VoiceMessage) {
-    const existing = currentMessages.current.some(m => m.id === message.id);
-    const next = existing ? currentMessages.current.map(m => m.id === message.id ? message : m) : [...currentMessages.current, message];
-    currentMessages.current = next;
-    if (mounted.current) { setMessages(next); setSavedIds(ids => ids.filter(id => id !== message.id)); }
+    const next = items.current.some((m) => m.id === message.id)
+      ? items.current.map((m) => (m.id === message.id ? message : m))
+      : [...items.current, message];
+    items.current = next;
+    if (alive.current) {
+      setMessages(next);
+      setSaved((ids) => ids.filter((id) => id !== message.id));
+    }
     try {
-      await saveVoiceMessage(message);
-      if (mounted.current) setSavedIds(ids => [...ids.filter(id => id !== message.id), message.id]);
+      const write = writes.current.then(() => saveVoiceMessage(message));
+      writes.current = write.catch(() => {});
+      await write;
+      if (
+        alive.current &&
+        items.current.find((m) => m.id === message.id) === message
+      )
+        setSaved((ids) => [
+          ...ids.filter((id) => id !== message.id),
+          message.id,
+        ]);
+      return true;
     } catch (e) {
-      if (mounted.current) setStorageError(e instanceof Error ? e.message : "Message could not be saved on this device.");
+      if (alive.current)
+        setStorageError(e instanceof Error ? e.message : t("saveError"));
+      return false;
     }
   }
   async function patch(id: string, changes: Partial<VoiceMessage>) {
-    const message = currentMessages.current.find(m => m.id === id);
-    if (message) await put({ ...message, ...changes });
+    const message = items.current.find((m) => m.id === id);
+    if (message) return put({ ...message, ...changes });
   }
   function stopAudio() {
-    playback.stop(); setPlayingId(undefined);
-    document.querySelectorAll<HTMLAudioElement>(".chatMessage audio").forEach(audio => audio.pause());
-  }
-  function cancel() {
-    voice.cancel(); controller.current?.abort(); active.current = false; setProcessing(false); setStatus(""); stopAudio();
-  }
-  async function transcribe(message: VoiceMessage, signal: AbortSignal) {
-    if (!message.audio) return;
-    setStatus("Checking your recording…");
-    const form = new FormData(); form.append("audio", message.audio, message.filename); form.append("language", message.language);
-    try {
-      const response = await fetch("/api/transcribe", { method: "POST", body: form, signal });
-      const data = await response.json();
-      if (!response.ok || typeof data.text !== "string" || !data.text.trim()) throw new Error(data.error || "No speech was detected. Record again or retry this message.");
-      if (!signal.aborted) await patch(message.id, { text: data.text, error: undefined });
-    } catch (e) {
-      if (!signal.aborted) await patch(message.id, { error: e instanceof Error ? e.message : "Transcription unavailable. Your recording is kept for replay and retry." });
-    } finally { if (!signal.aborted && mounted.current) setStatus(""); }
-  }
-  async function record() {
-    if (busy || active.current || !loaded) return;
-    stopAudio(); setError(""); setSeconds(0);
-    const parent = replyTo, thread = conversationId;
-    await voice.start(language, async (audio, filename, code, signal) => {
-      if (!audio.size) throw new Error("No audio was recorded. Please try again.");
-      const message: VoiceMessage = { id: crypto.randomUUID(), conversationId: thread, role: "user", createdAt: Date.now(), language: code, audio, filename, replyTo: parent };
-      await put(message);
-      if (!signal.aborted) await transcribe(message, signal);
-    });
+    window.dispatchEvent(
+      new CustomEvent("ileraher-audio-play", { detail: "stop-all" }),
+    );
+    document
+      .querySelectorAll<HTMLAudioElement>(".ux-chat audio")
+      .forEach((a) => a.pause());
+    window.speechSynthesis?.cancel();
   }
   async function task(work: (signal: AbortSignal) => Promise<void>) {
-    if (busy || active.current) return;
-    active.current = true;
-    const abort = new AbortController(); controller.current = abort;
-    setProcessing(true); setError("");
-    try { await work(abort.signal); }
-    catch (e) { if (!abort.signal.aborted && mounted.current) setError(e instanceof Error ? e.message : "Please try again."); }
-    finally {
-      if (controller.current === abort) { active.current = false; if (mounted.current) { setProcessing(false); setStatus(""); } }
+    if (lock.current || busy) return;
+    if (!online) {
+      setError(t("offlineHint"));
+      return;
     }
-  }
-  async function saveReplyAudio(message: VoiceMessage, signal: AbortSignal) {
-    setStatus("Saving reply audio…");
+    lock.current = true;
+    const controller = new AbortController();
+    abort.current = controller;
+    setProcessing(true);
+    setError("");
     try {
-      const response = await fetch("/api/voice/audio", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: `${message.text} ${message.disclaimer || ""}`, language: message.language }), signal });
-      if (!response.ok) { const data = await response.json(); throw new Error(data.error || "Reply audio unavailable"); }
-      const audio = await response.blob();
-      if (!signal.aborted) await patch(message.id, { audio, filename: `ileraher-reply-${message.id}.${audio.type.includes("mpeg") ? "mp3" : "wav"}`, error: undefined });
+      await work(controller.signal);
     } catch (e) {
-      if (!signal.aborted) await patch(message.id, { error: e instanceof Error ? e.message : "Reply audio unavailable. Device playback remains available." });
+      if (alive.current && !controller.signal.aborted)
+        setError(e instanceof Error ? e.message : t("retry"));
+    } finally {
+      if (abort.current === controller) {
+        lock.current = false;
+        if (alive.current) {
+          setProcessing(false);
+          setStatus("");
+        }
+      }
     }
   }
-  async function send(message: VoiceMessage) {
-    if (!message.text) return;
-    await task(async signal => {
-      setStatus("Preparing your reply…");
-      await patch(message.id, { confirmed: true, error: undefined });
+  function openDraft(m: VoiceMessage) {
+    setDraftId(m.id);
+    setWords(m.text || "");
+    setError("");
+  }
+  async function record() {
+    if (busy || !loaded) return;
+    stopAudio();
+    setError("");
+    const conversationId = thread,
+      replyTo = parent;
+    await voice.start(language, async (audio, filename, code) => {
+      if (!audio.size) throw new Error(t("noSpeech"));
+      const message: VoiceMessage = {
+        id: crypto.randomUUID(),
+        conversationId,
+        replyTo,
+        role: "user",
+        createdAt: Date.now(),
+        language: code,
+        audio,
+        filename,
+        draft: true,
+      };
+      await put(message);
+      if (alive.current) openDraft(message);
+    });
+  }
+  function beginRecord() {
+    let allowed = false;
+    try {
+      allowed = localStorage.getItem(CONSENT) === "yes";
+    } catch {}
+    if (allowed) void record();
+    else setDisclosure(true);
+  }
+  async function transcribe(message: VoiceMessage) {
+    if (!message.audio) return;
+    await task(async (signal) => {
+      setStatus(t("transcribing"));
+      const form = new FormData();
+      form.append("audio", message.audio!, message.filename);
+      form.append("language", message.language);
       try {
-        const response = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: message.text, language: message.language, conversation: contextFor(currentMessages.current, message.replyTo) }), signal });
+        const response = await fetch("/api/transcribe", {
+          method: "POST",
+          body: form,
+          signal,
+        });
         const data = await response.json();
-        if (!response.ok || typeof data.answer !== "string" || !data.answer.trim()) throw new Error(data.error || "Could not get guidance. Retry this message.");
-        if (signal.aborted) return;
-        const reply: VoiceMessage = { id: crypto.randomUUID(), conversationId: message.conversationId, role: "assistant", createdAt: Date.now(), language: message.language, replyTo: message.id, text: data.answer, urgency: data.urgency, disclaimer: data.disclaimer, sources: data.sources, model: data.model };
-        await put(reply);
-        if (mounted.current) setReplyTo(reply.id);
-        await saveReplyAudio(reply, signal);
+        if (!response.ok || !data.text?.trim())
+          throw new Error(data.error || t("noSpeech"));
+        await patch(message.id, { text: data.text, error: undefined });
+        if (alive.current && !signal.aborted) setWords(data.text);
       } catch (e) {
-        if (!signal.aborted) await patch(message.id, { error: e instanceof Error ? e.message : "Guidance unavailable. Retry this message." });
-        else await patch(message.id, { error: "Reply cancelled. Retry guidance when ready." });
+        if (!signal.aborted) {
+          const text = e instanceof Error ? e.message : t("retry");
+          await patch(message.id, { error: text });
+          setError(text);
+        }
       }
     });
   }
-  function followUp(message: VoiceMessage) {
-    stopAudio(); setReplyTo(message.id); setLanguage(message.language);
-    composer.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-  function newConversation() {
-    stopAudio(); setConversationId(crypto.randomUUID()); setReplyTo(undefined); setDeletePending(false); setError("");
-  }
-  async function removeConversation() {
-    await task(async () => {
-      await deleteVoiceConversation(conversationId);
-      const next = currentMessages.current.filter(m => m.conversationId !== conversationId);
-      currentMessages.current = next; setMessages(next); stopAudio(); newConversation();
+  async function send(message: VoiceMessage, text = message.text || "") {
+    if (!text.trim() || text.trim().length > 1200) return;
+    await task(async (signal) => {
+      setStatus(t("sending"));
+      await patch(message.id, {
+        text: text.trim(),
+        confirmed: true,
+        draft: false,
+        error: undefined,
+      });
+      setDraftId(undefined);
+      setTyping(false);
+      setTyped("");
+      try {
+        const response = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            question: text.trim(),
+            language: message.language,
+            conversation: contextFor(items.current, message.replyTo),
+          }),
+          signal,
+        });
+        const data = await response.json();
+        if (!response.ok || !data.answer?.trim())
+          throw new Error(data.error || t("noReply"));
+        if (signal.aborted) return;
+        const reply: VoiceMessage = {
+          id: crypto.randomUUID(),
+          conversationId: message.conversationId,
+          replyTo: message.id,
+          role: "assistant",
+          createdAt: Date.now(),
+          language: message.language,
+          text: data.answer,
+          urgency: data.urgency,
+          disclaimer: data.disclaimer,
+          sources: data.sources,
+          model: data.model,
+        };
+        await put(reply);
+        if (alive.current) setParent(reply.id);
+      } catch (e) {
+        await patch(message.id, {
+          error: signal.aborted
+            ? t("retry")
+            : e instanceof Error
+              ? e.message
+              : t("noReply"),
+        });
+      }
     });
   }
-  const visible = messages.filter(m => m.conversationId === conversationId);
-  const threads = [...new Set(messages.map(m => m.conversationId))].reverse();
-  const selected = messages.find(m => m.id === replyTo);
-  return <section className={`panel voicepanel voiceScreen voiceChat${compact ? " compactVoice" : ""}`}>
-    <span className="eyebrow">{compact ? "Low-data voice chat" : "Ask privately · Voice chat"}</span>
-    <h1>{PROMPTS[language]}</h1>
-    <p className="muted">Record, listen again, and keep the conversation going.</p>
-    <p className="chatPrivacy small">Recordings and replies are saved in this browser on this device. Clearing site data removes them. Recordings are sent for transcription. Confirmed transcripts and selected conversation context are sent for answers; reply text may be sent to the configured speech service.</p>
-    <div className="chatToolbar">
-      <label>Conversations<select disabled={busy || !loaded} value={conversationId} onChange={e => { stopAudio(); setConversationId(e.target.value); setReplyTo(undefined); setDeletePending(false); }}>
-        {!threads.includes(conversationId) && <option value={conversationId}>New conversation</option>}
-        {threads.map(id => { const first = messages.find(m => m.conversationId === id)!; return <option key={id} value={id}>{new Date(first.createdAt).toLocaleString()} · {messages.filter(m => m.conversationId === id).length} messages</option>; })}
-      </select></label>
-      <button className="secondaryBtn" disabled={busy || !loaded} onClick={newConversation}>＋ New conversation</button>
-      {!!visible.length && <button className="textbtn" disabled={busy} onClick={() => setDeletePending(!deletePending)}>Delete conversation</button>}
-    </div>
-    {deletePending && <div className="shareNotice"><p>Delete all recordings and replies in this conversation from this device?</p><button className="secondaryBtn" disabled={busy} onClick={removeConversation}>Yes, delete conversation</button><button className="textbtn" onClick={() => setDeletePending(false)}>Keep it</button></div>}
-    {storageError && <p className="risk attention" role="alert">{storageError}</p>}
-    <div className="chatTimeline" aria-label="Voice conversation">
-      {!loaded ? <p role="status">Opening saved conversations…</p> : !visible.length ? <div className="chatEmpty"><span>🎧</span><h2>Start with your voice</h2><p>Your messages will appear here. Listen whenever you need, or record a follow-up to any reply.</p></div> : visible.map(message => <VoiceMessageCard key={message.id} message={message} parent={messages.find(m => m.id === message.replyTo)} saved={savedIds.includes(message.id)} busy={busy} playbackState={playingId === message.id ? playback.state : "idle"}
-        onListen={() => { stopAudio(); setPlayingId(message.id); playback.play(`${message.text} ${message.disclaimer || ""}`, message.language); }} onPause={playback.pause} onResume={playback.resume} onStop={stopAudio}
-        onAudioPlay={element => { playback.stop(); setPlayingId(undefined); document.querySelectorAll<HTMLAudioElement>(".chatMessage audio").forEach(audio => { if (audio !== element) audio.pause(); }); }}
-        onFollowUp={() => followUp(message)} onSend={() => send(message)} onRetry={() => task(signal => transcribe(message, signal))} onSaveAudio={() => task(signal => saveReplyAudio(message, signal))} />)}
-    </div>
-    <div ref={composer} className="voiceComposer">
-      {selected && <div className="followUpBanner"><span>↳ Following up on {selected.role === "user" ? "your recording" : "ÌleraHer’s reply"} · {new Date(selected.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span><button className="textbtn" disabled={busy} onClick={() => setReplyTo(undefined)}>Ask a new question</button></div>}
-      <div className="voiceRecordBar">
-        <button type="button" className={voice.recording ? "mic recording" : "mic"} disabled={!loaded || (busy && !voice.recording)} aria-label={voice.recording ? "Stop recording" : selected ? "Record voice follow-up" : "Start recording"} onClick={voice.recording ? voice.stop : record}>
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{voice.recording ? <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" /> : <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" /></>}</svg>
+  async function replyAudio(message: VoiceMessage) {
+    await task(async (signal) => {
+      setStatus(t("processingVoice"));
+      try {
+        const response = await fetch("/api/voice/audio", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: `${message.text} ${message.disclaimer || ""}`,
+            language: message.language,
+          }),
+          signal,
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || t("noReply"));
+        }
+        const audio = await response.blob();
+        if (!signal.aborted)
+          await patch(message.id, {
+            audio,
+            filename: `ileraher-${message.id}.${audio.type.includes("mpeg") ? "mp3" : "wav"}`,
+            error: undefined,
+          });
+      } catch (e) {
+        if (!signal.aborted)
+          await patch(message.id, {
+            error: e instanceof Error ? e.message : t("noReply"),
+          });
+      }
+    });
+  }
+  async function typedReview() {
+    if (!typed.trim()) return;
+    const message: VoiceMessage = {
+      id: crypto.randomUUID(),
+      conversationId: thread,
+      replyTo: parent,
+      role: "user",
+      createdAt: Date.now(),
+      language,
+      text: typed.trim(),
+      draft: true,
+    };
+    const stored = await put(message);
+    openDraft(message);
+    setTyping(false);
+    setTyped("");
+    if (stored)
+      try {
+        localStorage.removeItem(TYPED + thread);
+      } catch {}
+  }
+  async function discard() {
+    if (!draft || busy) return;
+    try {
+      if (saved.includes(draft.id)) await deleteVoiceMessage(draft.id);
+      items.current = items.current.filter((m) => m.id !== draft.id);
+      setMessages(items.current);
+      setDraftId(undefined);
+      setWords("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("saveError"));
+    }
+  }
+  function updateTyped(text: string) {
+    setTyped(text);
+    try {
+      localStorage.setItem(
+        TYPED + thread,
+        JSON.stringify({ text, parent, language }),
+      );
+    } catch {
+      setStorageError(t("saveError"));
+    }
+  }
+  function switchThread(id: string) {
+    stopAudio();
+    setTyping(false);
+    setTyped("");
+    setThread(id);
+    setParent(undefined);
+    setHistory(false);
+    nearBottom.current = true;
+    setNewReply(false);
+  }
+  async function remove() {
+    if (!deleteId) return;
+    try {
+      await deleteVoiceConversation(deleteId);
+      items.current = items.current.filter(
+        (m) => m.conversationId !== deleteId,
+      );
+      setMessages(items.current);
+      if (thread === deleteId)
+        switchThread(
+          items.current.at(-1)?.conversationId || crypto.randomUUID(),
+        );
+      setDeleteId(undefined);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("saveError"));
+    }
+  }
+  const visible = messages.filter(
+      (m) => m.conversationId === thread && !m.draft,
+    ),
+    threads = [...new Set(messages.map((m) => m.conversationId))].reverse(),
+    selected = messages.find((m) => m.id === parent);
+  function title(id: string) {
+    return (
+      names[id] ||
+      messages
+        .find((m) => m.conversationId === id && m.text)
+        ?.text?.slice(0, 64) ||
+      t("shortVoice")
+    );
+  }
+  return (
+    <section className={`ux-chat${compact ? " compact" : ""}`}>
+      <header className="ux-chat-header">
+        <button
+          className="ux-icon-button"
+          aria-label={t("conversations")}
+          disabled={busy}
+          onClick={() => setHistory(true)}
+        >
+          <Icon name="logs" />
         </button>
-        <div className="recordBarCopy">
-          <strong>{voice.recording ? "Recording…" : voice.busy ? "Checking audio…" : processing ? "Preparing reply…" : selected ? "Voice follow-up" : "Tap to speak"}</strong>
-          {voice.recording ? <span role="timer">{seconds}s / 60s · Tap to stop</span> : <span>Up to 60s · Review before sending</span>}
-          {busy && <button className="textbtn" onClick={cancel}>Cancel</button>}
+        <Flower size={38} />
+        <div className="ux-chat-title">
+          <strong>ÌleraHer</strong>
+          <small>{compact ? t("lowData") : t("aiGuide")}</small>
         </div>
-        <label className="chatLanguageSelect">Language
-          <select aria-label="Choose language" value={language} disabled={busy} onChange={e => { setLanguage(e.target.value as IlaraLanguage); stopAudio(); }}>
-            {LANGUAGE_OPTIONS.map(x => <option key={x.code} value={x.code}>{x.code === "en-NG" ? "English (NG)" : x.label}</option>)}
+        <label className="ux-chat-language">
+          <span className="sr-only">{t("chooseLanguage")}</span>
+          <select
+            aria-label={t("chooseLanguage")}
+            value={language}
+            disabled={busy}
+            onChange={(e) => setLanguage(e.target.value as IlaraLanguage)}
+          >
+            {LANGUAGE_OPTIONS.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.code === "en-NG" ? "English" : l.label}
+              </option>
+            ))}
           </select>
         </label>
+        <Link
+          className="ux-icon-button"
+          href="/settings/privacy"
+          aria-label={t("space")}
+        >
+          <Icon name="more" />
+        </Link>
+      </header>
+      {!online && (
+        <div className="ux-chat-offline" role="status">
+          <Icon name="wifi" size={16} /> {t("offline")} · {t("offlineHint")}
+        </div>
+      )}
+      {storageError && (
+        <div className="ux-chat-offline" role="alert">
+          {storageError}
+        </div>
+      )}
+      <div
+        className="ux-chat-thread"
+        ref={timeline}
+        aria-label={t("chat")}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          nearBottom.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+          if (nearBottom.current) setNewReply(false);
+        }}
+      >
+        {!loaded ? (
+          <p role="status">{t("loading")}</p>
+        ) : !visible.length ? (
+          <div className="ux-empty-state">
+            <Flower size={72} />
+            <h2>{t("greeting")}</h2>
+            <p>{t("wellbeing")}</p>
+            <span className="ux-badge">{t("historyDevice")}</span>
+          </div>
+        ) : (
+          visible.map((message) => (
+            <VoiceMessageCard
+              key={message.id}
+              message={message}
+              parent={messages.find((m) => m.id === message.replyTo)}
+              saved={saved.includes(message.id)}
+              busy={busy}
+              onFollowUp={() => {
+                setParent(message.id);
+                setLanguage(message.language);
+                stopAudio();
+              }}
+              onReview={() => openDraft(message)}
+              onRetry={() => send(message)}
+              onSaveAudio={() => replyAudio(message)}
+            />
+          ))
+        )}
       </div>
-      <p role="status" aria-live="polite">{status}</p>
-      {(voice.error || error || playback.error) && <p role="alert" className="risk attention">{voice.error || error || playback.error}</p>}
-      <p className="voiceHint">Saved recordings play without a new download. Online connection needed for new answers. Audio plays only when you choose.</p>
-    </div>
-  </section>;
+      {newReply && (
+        <button
+          className="ux-pill ux-new-reply"
+          onClick={() => {
+            timeline.current?.scrollTo({ top: timeline.current.scrollHeight });
+            setNewReply(false);
+          }}
+        >
+          {t("newReply")} ↓
+        </button>
+      )}
+      <div className="ux-composer">
+        {selected && (
+          <div className="ux-follow-banner">
+            <span>
+              {t("reply")} · {selected.text?.slice(0, 65) || t("recording")}
+            </span>
+            <button
+              className="ux-icon-button"
+              aria-label={t("cancelReply")}
+              disabled={busy}
+              onClick={() => setParent(undefined)}
+            >
+              <Icon name="close" size={18} />
+            </button>
+          </div>
+        )}
+        {voice.recording ? (
+          <div className="ux-record-state">
+            <strong>
+              {voice.paused ? t("paused") : t("recording")} · {voice.seconds}s /
+              60s
+            </strong>
+            <div className="ux-live-wave" aria-hidden="true">
+              {voice.levels.map((n, i) => (
+                <i key={i} style={{ height: Math.max(2, n * 52) }} />
+              ))}
+            </div>
+            <div className="ux-actions">
+              <button
+                className="ux-secondary"
+                onClick={voice.paused ? voice.resume : voice.pause}
+              >
+                <Icon name={voice.paused ? "play" : "pause"} />
+                {voice.paused ? t("resume") : t("pause")}
+              </button>
+              <button className="ux-button" onClick={voice.stop}>
+                <Icon name="stop" />
+                {t("review")}
+              </button>
+              <button
+                className="ux-icon-button"
+                aria-label={t("discard")}
+                onClick={voice.cancel}
+              >
+                <Icon name="trash" />
+              </button>
+            </div>
+          </div>
+        ) : typing ? (
+          <>
+            <textarea
+              rows={2}
+              maxLength={1200}
+              value={typed}
+              aria-label={t("message")}
+              onChange={(e) => updateTyped(e.target.value)}
+            />
+            <div className="ux-actions">
+              <button
+                className="ux-button"
+                disabled={!typed.trim() || busy}
+                onClick={typedReview}
+              >
+                {t("review")}
+              </button>
+              <button className="ux-secondary" onClick={() => setTyping(false)}>
+                {t("cancel")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="ux-composer-row">
+            <button
+              className="ux-icon-button"
+              aria-label={t("newConversation")}
+              disabled={busy}
+              onClick={() => switchThread(crypto.randomUUID())}
+            >
+              <Icon name="plus" />
+            </button>
+            <div className="ux-composer-copy">
+              <strong>{processing ? t("sending") : t("letsTalk")}</strong>
+              <small>{t("upTo60")}</small>
+            </div>
+            <button
+              className="ux-icon-button"
+              aria-label={t("typeInstead")}
+              disabled={busy}
+              onClick={() => {
+                try {
+                  const cached = JSON.parse(
+                    localStorage.getItem(TYPED + thread) || "null",
+                  );
+                  if (cached?.text) setTyped(cached.text);
+                } catch {}
+                setTyping(true);
+              }}
+            >
+              <Icon name="edit" size={20} />
+            </button>
+            <button
+              className="ux-record-button"
+              aria-label={t("record")}
+              disabled={busy || !loaded}
+              onClick={beginRecord}
+            >
+              <Icon name="mic" />
+            </button>
+          </div>
+        )}
+        {messages.some((m) => m.conversationId === thread && m.draft) &&
+          !draft && (
+            <button
+              className="ux-pill"
+              onClick={() =>
+                openDraft(
+                  messages
+                    .filter((m) => m.conversationId === thread && m.draft)
+                    .at(-1)!,
+                )
+              }
+            >
+              {t("review")} · {t("unsentDraft")}
+            </button>
+          )}
+        {status && (
+          <p className="ux-chat-notice" role="status">
+            {status}
+          </p>
+        )}
+        {processing && (
+          <button className="ux-pill" onClick={() => abort.current?.abort()}>
+            {t("cancel")}
+          </button>
+        )}
+        {(error || voice.error) && (
+          <p className="ux-alert" role="alert">
+            {error || t("recordingUnavailable")}
+          </p>
+        )}
+        <p className="ux-chat-notice">
+          {t("aiGuide")} · <Link href="/settings/privacy">{t("privacy")}</Link>
+        </p>
+      </div>
+      {disclosure && (
+        <Dialog title={t("beforeListen")} onClose={() => setDisclosure(false)}>
+          <p>{t("voiceDisclosure")}</p>
+          <p>{t("processingDisclosure")}</p>
+          <p>{t("localDisclosure")}</p>
+          <div className="ux-actions">
+            <button
+              className="ux-button"
+              onClick={() => {
+                try {
+                  localStorage.setItem(CONSENT, "yes");
+                } catch {}
+                setDisclosure(false);
+                void record();
+              }}
+            >
+              {t("continueRecord")}
+            </button>
+            <button
+              className="ux-secondary"
+              onClick={() => setDisclosure(false)}
+            >
+              {t("cancel")}
+            </button>
+          </div>
+        </Dialog>
+      )}
+      {draft && (
+        <Dialog
+          title={t("yourWords")}
+          busy={processing}
+          onClose={() => {
+            setDraftId(undefined);
+            setError("");
+          }}
+        >
+          {draft.audio && (
+            <div className="ux-review-audio">
+              <AudioPlayer audio={draft.audio} id={`review-${draft.id}`} />
+            </div>
+          )}
+          <p>{t("reviewHint")}</p>
+          {draft.audio && !words && (
+            <button
+              className="ux-secondary"
+              disabled={processing || !online}
+              onClick={() => transcribe(draft)}
+            >
+              {processing ? t("transcribing") : t("transcribe")}
+            </button>
+          )}
+          <label htmlFor="review-words">{t("editWords")}</label>
+          <textarea
+            id="review-words"
+            rows={4}
+            maxLength={1200}
+            value={words}
+            onChange={(e) => {
+              setWords(e.target.value);
+              void patch(draft.id, { text: e.target.value });
+            }}
+          />
+          <small className="ux-review-limit">
+            {words.trim().length} / 1,200
+          </small>
+          {words.trim().length > 1200 && (
+            <p className="ux-alert">{t("messageLimit")}</p>
+          )}
+          <p>{t("textDisclosure")}</p>
+          {(error || draft.error) && (
+            <p className="ux-alert" role="alert">
+              {error || draft.error}
+            </p>
+          )}
+          <small role="status">
+            {saved.includes(draft.id) ? t("draftSaved") : t("unsaved")}
+          </small>
+          {processing && (
+            <button className="ux-pill" onClick={() => abort.current?.abort()}>
+              {t("cancel")}
+            </button>
+          )}
+          <div className="ux-actions">
+            <button
+              className="ux-button"
+              disabled={
+                processing ||
+                !online ||
+                !words.trim() ||
+                words.trim().length > 1200
+              }
+              onClick={() => send(draft, words)}
+            >
+              {processing ? t("sending") : t("send")}
+            </button>
+            <button
+              className="ux-secondary"
+              disabled={processing}
+              onClick={async () => {
+                await patch(draft.id, { text: words });
+                setDraftId(undefined);
+              }}
+            >
+              {t("saveDraft")}
+            </button>
+            <button
+              className="ux-icon-button"
+              disabled={processing}
+              aria-label={t("discard")}
+              onClick={discard}
+            >
+              <Icon name="trash" />
+            </button>
+          </div>
+        </Dialog>
+      )}
+      {history && (
+        <Dialog title={t("conversations")} onClose={() => setHistory(false)}>
+          <button
+            className="ux-button"
+            onClick={() => switchThread(crypto.randomUUID())}
+          >
+            <Icon name="plus" />
+            {t("newConversation")}
+          </button>
+          <input
+            aria-label={t("search")}
+            placeholder={t("search")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ marginTop: 20 }}
+          />
+          <div className="ux-history-list">
+            {threads
+              .filter((id) =>
+                title(id).toLowerCase().includes(search.toLowerCase()),
+              )
+              .map((id) => (
+                <div key={id}>
+                  <button onClick={() => switchThread(id)}>
+                    <strong>{title(id)}</strong>
+                    <small>
+                      {new Date(
+                        messages.find(
+                          (m) => m.conversationId === id,
+                        )!.createdAt,
+                      ).toLocaleDateString(locale)}
+                    </small>
+                  </button>
+                  <button
+                    className="ux-icon-button"
+                    aria-label={t("rename")}
+                    onClick={() => {
+                      setRenameId(id);
+                      setNewName(names[id] || "");
+                      setHistory(false);
+                    }}
+                  >
+                    <Icon name="edit" size={18} />
+                  </button>
+                  <button
+                    className="ux-icon-button"
+                    aria-label={t("delete")}
+                    onClick={() => {
+                      setDeleteId(id);
+                      setHistory(false);
+                    }}
+                  >
+                    <Icon name="trash" size={18} />
+                  </button>
+                </div>
+              ))}
+            {!threads.length && <p>{t("noConversations")}</p>}
+          </div>
+        </Dialog>
+      )}
+      {deleteId && (
+        <Dialog title={t("deleteChats")} onClose={() => setDeleteId(undefined)}>
+          <p>{t("deleteConfirm")}</p>
+          <div className="ux-actions">
+            <button className="ux-danger" onClick={remove}>
+              {t("delete")}
+            </button>
+            <button
+              className="ux-secondary"
+              onClick={() => setDeleteId(undefined)}
+            >
+              {t("cancel")}
+            </button>
+          </div>
+        </Dialog>
+      )}
+      {renameId && (
+        <Dialog title={t("rename")} onClose={() => setRenameId(undefined)}>
+          <input
+            aria-label={t("rename")}
+            value={newName}
+            maxLength={80}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <div className="ux-actions">
+            <button
+              className="ux-button"
+              onClick={() => {
+                try {
+                  const next = { ...names, [renameId]: newName.trim() };
+                  localStorage.setItem(NAMES, JSON.stringify(next));
+                  setNames(next);
+                  setRenameId(undefined);
+                } catch {
+                  setError(t("saveError"));
+                }
+              }}
+            >
+              {t("save")}
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </section>
+  );
 }
