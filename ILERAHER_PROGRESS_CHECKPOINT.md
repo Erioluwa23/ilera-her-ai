@@ -133,3 +133,23 @@ phone-call success is inferred from this frontend work.
 
 Target deployment: existing original service srv-dart3h8u01pc73dpngdg, branch main,
 auto-deploy remains off. Deployment result will be recorded after confirmation.
+
+### Confirmed deployment result
+
+- Published application commit: 26323cd4aced96d29b5367fa29620949f396afb1;
+  parent 5dea08e6b4231675c8b8ecf524d8d220ac5aa2c0; tested/published tree
+  5b88d177afbde06934284c93a3bba7648673c11a.
+- GitHub CI push run 38052170544 completed successfully. The connector's dedicated
+  workflow wrapper filters to pull-request runs; CI success was verified instead
+  through the approved repository Actions GET endpoint for this exact commit.
+- Render dep-db52vl3rjlhs73c85lo0 is live on the original service, finished
+  2026-10-10T12:31:55.917344Z. No duplicate deployment or paid resource change.
+- Cloud Browser observed the deployed flower branding, updated palette and four-
+  language sign-in selector. Protected application screens still redirect to sign-in;
+  their real-device screenshot/keyboard/200% text QA and real speech calls remain
+  unverified. Public health/manifest/SW retrieval through web search was inaccessible;
+  no live API health assertion is made from that failed retrieval.
+- Fetched and verified preview/d3c1c28 remains at the exact d3c1c28 revision and is
+  not an ancestor of published main. The preview Render app was not changed.
+- This deployment-result follow-up changes documentation only. The live application
+  code remains 26323cd; automatic deployment stays off.

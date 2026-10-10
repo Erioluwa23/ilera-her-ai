@@ -64,5 +64,8 @@ account/database schemas and the separate preview/d3c1c28 branch were not change
 - Required N-ATLAS/ASR and speech-provider integration remains intact. External model
   access, GPU quotas, language-specific inference and real incoming phone calls remain
   dependent on their existing runtime/account setup; no new inference claim is made.
+- GitHub CI run 38052170544 succeeded for application commit 26323cd. Render
+  deployment dep-db52vl3rjlhs73c85lo0 is live. The deployed public sign-in branding
+  and language dropdown were observed in Cloud Browser.
 - Render deployment identifiers and live follow-up are recorded in
   ILERAHER_PROGRESS_CHECKPOINT.md. No paid resource or plan change is part of this work.
