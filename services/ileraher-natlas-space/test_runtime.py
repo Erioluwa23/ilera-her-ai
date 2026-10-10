@@ -11,7 +11,7 @@ SOURCE = Path(__file__).with_name("app.py")
 # Import only the boundary functions, excluding module startup/model downloads.
 TREE = ast.parse(SOURCE.read_text())
 FUNCTIONS = ast.Module(body=[n for n in TREE.body if isinstance(n, ast.FunctionDef)
-                            and n.name in ("normalize_language", "cleanup_audio", "transcribe", "suspicious_repetition", "answer", "synthesize")], type_ignores=[])
+                            and n.name in ("normalize_language", "cleanup_audio", "transcribe", "suspicious_repetition", "answer", "synthesize", "llm_credential", "classify_llm_failure")], type_ignores=[])
 
 
 class RuntimeBoundaryTests(unittest.TestCase):
@@ -44,6 +44,26 @@ class RuntimeBoundaryTests(unittest.TestCase):
             self.context["synthesize"]("Hello", "yo")
         self.context["generate_answer"].assert_not_called()
         self.context["generate_audio"].assert_not_called()
+
+    def test_text_credential_can_be_separate_without_replacing_asr_access(self):
+        self.context["HF_TOKEN"] = "asr-secret-fixture"
+        with patch.dict(os.environ, {"NATLAS_LLM_HF_TOKEN": "llm-secret-fixture"}):
+            self.assertEqual(self.context["llm_credential"](), "llm-secret-fixture")
+        with patch.dict(os.environ, {"NATLAS_LLM_HF_TOKEN": ""}):
+            self.assertEqual(self.context["llm_credential"](), "asr-secret-fixture")
+        self.assertEqual(self.context["HF_TOKEN"], "asr-secret-fixture")
+
+    def test_model_load_failure_is_not_misreported_as_access_denial(self):
+        report = self.context["classify_llm_failure"](RuntimeError("private internal exception"), True)
+        self.assertTrue(report["llmAccess"])
+        self.assertEqual(report["llmFailureCategory"], "load")
+        self.assertNotIn("private", str(report))
+        error = RuntimeError("hf_private-value")
+        error.response = type("Response", (), {"status_code": 403})()
+        report = self.context["classify_llm_failure"](error, False)
+        self.assertFalse(report["llmAccess"])
+        self.assertEqual(report["llmFailureCategory"], "access")
+        self.assertNotIn("hf_private", str(report))
 
     def test_cleanup_removes_cache_upload(self):
         upload = Path(self.cache.name) / "voice.wav"

@@ -75,6 +75,9 @@ Generate two separate random secrets using a secure host tool. Configure:
 - `SIM_API_KEY`: different value, used only by the local API/FastAGI controller.
 - `ILERAHER_APP_URL`: existing app origin, without a path or credentials.
 - `SIM_REVIEWED_LANGUAGES`: `en-NG` initially. Add `yo,ha,ig` after acceptance.
+- `SIM_GATEWAY_IP` and `SIM_GATEWAY_MODEL`: the actual private device address and
+  voice-capable model, used by the operator setup check. The installer saves the
+  supplied address when it first creates the environment file.
 
 Do not put credentials in chat, source control, URLs or `NEXT_PUBLIC_*` variables.
 The service key also protects encrypted reply data: keep it stable. Rotation needs
@@ -102,6 +105,27 @@ sudo systemctl enable --now ileraher-sim-call
 curl http://127.0.0.1:8078/healthz
 sudo asterisk -rx 'pjsip show contacts'
 ```
+
+Run the setup check as the service user after installation:
+
+```bash
+cd /opt/ileraher/service
+sudo -u ileraher /opt/ileraher/venv/bin/python -m simcall.doctor \
+  --env-file /etc/ileraher-sim-call.env
+# Optional: consumes provider quota with a fixed English menu/test phrase only.
+sudo -u ileraher /opt/ileraher/venv/bin/python -m simcall.doctor \
+  --env-file /etc/ileraher-sim-call.env --speech-smoke
+```
+
+The first command is read-only and acquires no speech compute. It checks local
+permissions, PCM menus, loopback listeners, Asterisk availability, matched app
+credentials, the privately configured number and model status. It never prints
+secrets, recordings or transcripts. `--speech-smoke` calls the existing ASR and
+spoken-reply routes with fixed non-medical content, validates the returned format
+and reports quota/failure/latency. It does not verify pronunciation or a carrier
+call. Exit code 2 means a blocked check; pending compute alone is not counted as
+ready for acceptance. Keep the environment file at mode 0640 or stricter. The
+parser supports simple `KEY=value` lines and quoted values without shell expansion.
 
 The service sends a status heartbeat every 30 seconds based on the actual Asterisk
 `sim-gateway` contact being `Avail` and prompt files existing. The app never
@@ -145,6 +169,11 @@ has bounded budgets: ASR 45 seconds, optional generation 12 seconds, speech 45
 seconds. Quota/timeout failures play an offline error prompt and end the call;
 they never masquerade as a successful reply. For consistent public phone service,
 measure concurrency/latency and provision sufficient existing-model capacity.
+The Space's ASR secret and the Render client credential have separate roles.
+Use the optional `NATLAS_LLM_HF_TOKEN` **Space secret** for an approved text-model
+credential without replacing working ASR access. A loaded model does not prove
+available compute. The setup check's default result explicitly leaves compute
+untested; a number configuration alone cannot route a carrier voice call.
 
 ## API contract
 

@@ -91,7 +91,10 @@ export async function inspectNatlasSpace(){
         const verified=status as Record<string,unknown>;
         gatedModelsAccessible=verified.provider==="ileraher_zerogpu_asr"&&verified.gatedModelsAccessible===true;
         modelsLoaded=verified.modelsLoaded===true;
-        generation={llmLoaded:verified.llmLoaded===true,ttsLoaded:verified.ttsLoaded===true,llmError:verified.llmError,ttsError:verified.ttsError,ttsStage:verified.ttsStage};
+        generation={llmLoaded:verified.llmLoaded===true,ttsLoaded:verified.ttsLoaded===true,
+          llmAccess:typeof verified.llmAccess==="boolean"?verified.llmAccess:null,
+          llmFailureCategory:["access","load"].includes(String(verified.llmFailureCategory))?verified.llmFailureCategory:null,
+          llmError:verified.llmError,ttsError:verified.ttsError,ttsStage:verified.ttsStage};
       }
     }
     const inferenceTested=verifiedLanguages.size===4;

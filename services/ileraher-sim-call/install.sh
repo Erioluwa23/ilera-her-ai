@@ -6,7 +6,7 @@ if [[ "$(id -u)" != 0 ]]; then printf '%s\n' 'Run this installer with sudo on th
 if [[ -z "${SIM_GATEWAY_IP:-}" ]]; then printf '%s\n' 'Set SIM_GATEWAY_IP to the gateway LAN/VPN IPv4 address.' >&2; exit 1; fi
 python3 -c 'import ipaddress,os; value=ipaddress.ip_address(os.environ["SIM_GATEWAY_IP"]); assert value.version==4 and value.is_private and not value.is_unspecified and not value.is_loopback'
 apt-get update
-apt-get install --no-install-recommends -y asterisk python3-venv ffmpeg espeak-ng
+apt-get install --no-install-recommends -y asterisk python3-venv ffmpeg espeak-ng iproute2
 if ! id ileraher >/dev/null 2>&1; then useradd --system --gid asterisk --home-dir /opt/ileraher --shell /usr/sbin/nologin ileraher; fi
 install -d -o ileraher -g asterisk -m 2770 /var/lib/ileraher/media
 install -d -o root -g asterisk -m 0750 /opt/ileraher/service /opt/ileraher/prompts /etc/asterisk/ileraher-sim
@@ -35,6 +35,14 @@ PY
 chown root:asterisk /etc/asterisk/ileraher-sim/*.conf
 chmod 0640 /etc/asterisk/ileraher-sim/*.conf
 install -m 0644 "$task_root/ileraher-sim-call.service" /etc/systemd/system/
-if [[ ! -e /etc/ileraher-sim-call.env ]]; then install -o root -g asterisk -m 0640 "$task_root/.env.example" /etc/ileraher-sim-call.env; fi
+if [[ ! -e /etc/ileraher-sim-call.env ]]; then
+    install -o root -g asterisk -m 0640 "$task_root/.env.example" /etc/ileraher-sim-call.env
+    python3 - <<'PY'
+import os
+from pathlib import Path
+config=Path("/etc/ileraher-sim-call.env")
+config.write_text(config.read_text().replace("SIM_GATEWAY_IP=\n", "SIM_GATEWAY_IP="+os.environ["SIM_GATEWAY_IP"]+"\n"))
+PY
+fi
 systemctl daemon-reload
 printf '%s\n' 'Installed. Before starting: configure the two secrets in /etc/ileraher-sim-call.env, restrict SIP/RTP to the gateway, review prompts, then follow README.md acceptance checks. The installer does not enable live calls.'

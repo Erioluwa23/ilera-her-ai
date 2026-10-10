@@ -17,6 +17,23 @@ HF_TOKEN = os.environ.get("HF_TOKEN")
 if not HF_TOKEN:
     raise RuntimeError("Server-side HF_TOKEN Space secret is required.")
 
+
+def llm_credential():
+    # Existing ASR access can belong to a different approved credential. Do not
+    # replace its secret simply to repair access to the separately gated LLM.
+    return os.environ.get("NATLAS_LLM_HF_TOKEN") or HF_TOKEN
+
+
+def classify_llm_failure(error, config_access):
+    status = getattr(getattr(error, "response", None), "status_code", None)
+    denied = status in {401, 403} or type(error).__name__ == "GatedRepoError"
+    return {
+        "llmFailureCategory": "access" if denied else "load",
+        "llmAccess": False if denied else True if config_access else None,
+        "llmError": "N-ATLaS access is unauthorized. Configure an approved NATLAS_LLM_HF_TOKEN Space secret."
+            if denied else "N-ATLaS could not load. Check runtime dependencies, memory and model configuration.",
+    }
+
 ASR_MODELS = {
     "english": "NCAIR1/NigerianAccentedEnglish",
     "yoruba": "NCAIR1/Yoruba-ASR",
@@ -128,19 +145,22 @@ def transcribe(audio_path, language):
 LLM_ID = "NCAIR1/N-ATLaS"
 TTS_ID = "saheedniyi/YarnGPT2b"
 LLM = LLM_TOKENIZER = TTS = AUDIO_TOKENIZER = None
-GENERATION_STATUS = {"llmLoaded": False, "ttsLoaded": False}
+GENERATION_STATUS = {"llmLoaded": False, "llmAccess": None, "ttsLoaded": False}
+llm_config_access = False
 try:
-    llm_config = hf_hub_download(LLM_ID, "config.json", token=HF_TOKEN)
+    llm_token = llm_credential()
+    llm_config = hf_hub_download(LLM_ID, "config.json", token=llm_token)
+    llm_config_access = True
+    GENERATION_STATUS["llmAccess"] = True
     llm_revision = Path(llm_config).parent.name
-    LLM_TOKENIZER = AutoTokenizer.from_pretrained(LLM_ID, revision=llm_revision, token=HF_TOKEN)
+    LLM_TOKENIZER = AutoTokenizer.from_pretrained(LLM_ID, revision=llm_revision, token=llm_token)
     LLM = AutoModelForCausalLM.from_pretrained(
-        LLM_ID, revision=llm_revision, token=HF_TOKEN,
+        LLM_ID, revision=llm_revision, token=llm_token,
         torch_dtype=torch.float16, low_cpu_mem_usage=True,
     ).to("cuda").eval()
     GENERATION_STATUS.update(llmLoaded=True, llmModel=LLM_ID, llmRevision=llm_revision)
 except Exception as error:
-    GENERATION_STATUS["llmFailure"] = type(error).__name__
-    GENERATION_STATUS["llmError"] = "N-ATLaS unavailable. HF_TOKEN needs approved access to NCAIR1/N-ATLaS."
+    GENERATION_STATUS.update(classify_llm_failure(error, llm_config_access))
 try:
     GENERATION_STATUS["ttsStage"] = "dependencies"
     import hashlib

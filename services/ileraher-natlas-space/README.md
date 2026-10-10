@@ -63,9 +63,9 @@ https://huggingface.co/docs/hub/spaces-zerogpu
 
 ## Answer generation and spoken replies
 
-- `/answer(question, context_json, language, system)` uses `NCAIR1/N-ATLaS` with the app's reviewed evidence and bounded dialogue. HF_TOKEN also needs approved access to this gated LLM.
+- `/answer(question, context_json, language, system)` uses `NCAIR1/N-ATLaS` with the app's reviewed evidence and bounded dialogue. Set the optional **Space secret** `NATLAS_LLM_HF_TOKEN` to a read credential approved for this LLM when it differs from the ASR credential. It defaults to `HF_TOKEN`; the ASR pipelines always retain `HF_TOKEN`. Setting the Render client's token does not change these Space secrets.
 - `/synthesize(text, language)` uses `saheedniyi/YarnGPT2b` and its WavTokenizer decoder. Returns WAV audio plus verified model/language provenance. Defaults are idera (English) and female2 (Yoruba, Hausa, Igbo). Replies are capped at 180 words / 80 seconds; no silent truncation.
-- `/status` reports `llmLoaded` and `ttsLoaded` independently. These optional models initialize on CUDA at startup; missing access/decoder leaves ASR available. GPU work shares the existing serialization lock and free quota.
+- `/status` reports `llmLoaded`, `llmAccess`, `llmFailureCategory` and `ttsLoaded` independently. Access denial and dependency/memory/load failures are distinguished without exposing raw exceptions. A successful config read does not prove that all weights can load. These optional models initialize on CUDA at startup; missing access/decoder leaves ASR available. GPU work shares the existing serialization lock and free quota.
 
 The decoder uses the exact Google Drive download linked by the YarnGPT2b author, verified against SHA256 before deserialization. Decoder configuration is pinned to a Hub revision. See THIRD_PARTY.md for the tokenizer and decoder source/license notices.
 

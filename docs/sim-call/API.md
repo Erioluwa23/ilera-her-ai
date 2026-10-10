@@ -41,6 +41,7 @@ encryption key for phone contexts/replies. Do not rotate it without a data plan.
 
 | Method and path | Request | Result |
 |---|---|---|
+| `GET /api/phone/integration/readiness` | No body; service bearer required | Private configured number, activation/verification, recent gateway status, installed languages, separate model load/access state and blockers; no GPU inference |
 | `POST /api/phone/integration/authenticate` | JSON `{callId: "<UUIDv4>", phone: "+234…", pin: "<six digits>", language, consented:true}` | `{grant, callId, language, expiresAt, maxTurns}`; checks existing user plus calling enrolment; no web cookie |
 | `POST /api/phone/integration/turn` | multipart `callId`, `grant`, `turnId`, `audio` | Spoken reply contract above; uses grant-bound language and encrypted server-held call context |
 | `POST /api/phone/integration/event` | JSON `{event:"played",callId,grant,turnId}` | Saves only opted-in, acknowledged replies |
@@ -50,7 +51,11 @@ encryption key for phone contexts/replies. Do not rotate it without a data plan.
 | Same | JSON `{event:"maintenance"}` | Deletes expired contexts/replies; usable by an existing secure scheduler |
 
 `SIM_PHONE_ENABLED` must be true for call authentication and inference. Cleanup and
-call-ending events remain available while the pilot is paused. Call grants are
+call-ending events and authenticated readiness checks remain available while the
+pilot is paused. `readiness.models.speechComputeTested` is always false: model
+loading cannot prove current quota or narrowband speech accuracy. The native
+`simcall.doctor --speech-smoke` performs an explicit fixed-content compute test.
+Readiness does not return raw provider exceptions or any account/call data. Call grants are
 random, stored only as hashes, bound to a UUID and user, and expire in 15 minutes.
 PIN reset/disabling revokes all that user's active grants. Health contexts and
 saved replies use AES-256-GCM with random nonces. Audio itself is not stored by

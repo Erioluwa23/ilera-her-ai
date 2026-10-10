@@ -43,8 +43,10 @@ Implemented in the existing `Erioluwa23/ilera-her-ai` repository, based on main
 
 ## Remaining physical activation dependencies
 
-Actual dedicated SIM number, voice-capable gateway model and operator approval,
-an accessible Linux host on its LAN/private VPN, securely matched service secrets,
+The provided dedicated SIM number is now configured in Render's server
+environment (see the activation update below). Remaining dependencies are a
+voice-capable gateway model and operator approval, an accessible Linux host on
+its LAN/private VPN, securely matched service secrets,
 native recordings/review for enabled languages, usable model quota and real call
 acceptance. Period records/web-chat history are not used by phone calls; follow-up
 context is limited to the call. This scope is explicit in the settings/README.
@@ -93,3 +95,43 @@ context is limited to the call. This scope is explicit in the settings/README.
   were merged onto that commit, preserving its changes. That separate cycle API
   is not wired into phone contexts; the call service still uses only its current
   conversation. These delivery-note changes do not deploy the separate cycle work.
+
+## Activation update — 2026-10-10
+
+- The user supplied the dedicated Nigerian SIM number. It was normalized to
+  E.164 and stored as `SIM_PHONE_NUMBER` on the existing Render service through
+  an environment merge, preserving all other settings. The update's deployment
+  `dep-db549fajnfac7396ilng`, on concurrent main commit
+  `4a39c9fff585b19221c5aa403863e5303f5551dc`, became live at
+  `2026-10-10T14:01:00.469144Z`. Calling remains paused/unverified; the public
+  phone-status endpoint continues to withhold the number. No number is purchased
+  and no carrier routing is inferred from configuring this variable.
+- Added bearer-authenticated `GET /api/phone/integration/readiness`. Operators
+  can inspect the configured number while paused, recent gateway availability,
+  prompt languages, separate model loading/access and activation blockers.
+  It returns no account/call data or raw provider exceptions. Model loading
+  explicitly leaves speech compute untested.
+- Added `python -m simcall.doctor --env-file /etc/ileraher-sim-call.env` for the
+  native service user. It checks protected configuration, media permissions,
+  actual PCM menus, loopback-only API/FastAGI listeners, Asterisk contact,
+  app-key matching and readiness. The default is read-only and does not acquire
+  GPUs. Optional `--speech-smoke` sends only a fixed English menu and a fixed
+  non-medical phrase through the existing ASR/TTS routes, reporting bounded
+  format/quota/latency results without logging transcripts or audio. It never
+  claims carrier connectivity or pronunciation accuracy. The installer now
+  installs `ss`/iproute2 and saves the gateway address on first environment setup.
+- Live `/api/natlas/access` returned text-model config access `200`, but `403`
+  for the four ASR configs using **Render's** credential. The **Space** separately
+  reported all ASR models loaded, speech loaded and text generation unavailable.
+  These are different credential contexts. Added an optional approved read-only
+  `NATLAS_LLM_HF_TOKEN` Space secret for text generation, retaining the existing
+  ASR `HF_TOKEN`. Access-denial and dependency/memory/load failures are now
+  reported separately, rather than labeling every load failure an approval issue.
+  No new credential or model approval is fabricated by this code change.
+- Validation on top of the concurrent cycle changes: all 341 app tests, all 18
+  SIM-service tests, all 8 model-runtime boundary tests and the production build
+  passed. Real call hardware, speech accuracy and usable live compute remain
+  unverified. No accessible dedicated Linux call host or SIM gateway was found
+  among the connected services. SSH is installed locally, but no host address,
+  SSH configuration or agent was supplied. Hugging Face's connector has read
+  permissions; its browser session requires sign-in for account/model settings.
