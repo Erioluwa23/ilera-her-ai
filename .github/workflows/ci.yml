@@ -16,6 +16,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r services/ileraher-sim-call/requirements-dev.txt
+      - name: Install call media dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm test
         env:
           SIM_TEST_PYTHON: python

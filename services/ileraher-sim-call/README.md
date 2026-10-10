@@ -154,12 +154,14 @@ obtain an app login cookie. Neither API accepts model/provider URLs from callers
 
 ## Verification and acceptance
 
+Tests require FFmpeg on PATH, as provided by the native installer and CI setup.
+
 ```bash
 python -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -q
 cd ../..
-SIM_TEST_PYTHON=services/ileraher-sim-call/.venv/bin/python npm test
+SIM_TEST_PYTHON="$(pwd)/services/ileraher-sim-call/.venv/bin/python" npm test
 npm run build
 ```
 
