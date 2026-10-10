@@ -1,6 +1,6 @@
 # Ordinary-phone IVR activation
 
-The application implements an incoming Twilio Programmable Voice journey. Code deployment alone does not activate a telephone service. Keep IVR_ENABLED=false until setup and actual calls are verified. No number is purchased by the application.
+The application implements an incoming Twilio Programmable Voice journey. Code deployment alone does not activate a telephone service. Keep IVR_ENABLED=false while configuring dependencies, then enable it for controlled acceptance calls before publishing. No number is purchased by the application. For a nonprofit credit-funded pilot, see [IVR credit pilot](docs/IVR_CREDIT_PILOT.md).
 
 ## Server configuration
 
@@ -10,7 +10,7 @@ Configure the following securely in the application's hosting environment. Do no
 - IVR_PHONE_NUMBER: that number in E.164 format.
 - IVR_PUBLIC_BASE_URL: the application's exact HTTPS origin, without a path or query.
 - IVR_SESSION_SECRET: a cryptographically random secret of at least 32 characters. Rotating it invalidates active calls and encrypted temporary results.
-- IVR_DATABASE_URL: a dedicated persistent PostgreSQL connection. The application creates the ileraher_ivr_jobs table. Database role needs CREATE TABLE and access to this table. Use internal networking or a certificate-verified TLS connection.
+- DATABASE_URL: the app's persistent PostgreSQL connection; IVR uses it by default. IVR_DATABASE_URL optionally selects a separate database. The application creates the IVR jobs, profiles and history tables. The database role needs CREATE TABLE and access to these tables. Use internal networking or a certificate-verified TLS connection.
 - N-ATLAS ASR runtime: the existing application transcription provider must be reachable and able to load the required official checkpoints.
 - NATLAS_LLM_API_URL / key, or NATLAS_HF_LLM_SPACE: a functioning official N-ATLAS text service. The IVR worker fails safely if non-urgent generation is unavailable; urgent guidance preserves the curated care instructions.
 
@@ -38,8 +38,8 @@ Signed call and media links expire after 20 minutes. Expired database rows are p
 
 ## Activation and real-call verification
 
-1. Verify actual ASR and N-ATLAS text responses, database connectivity, number mapping, prompt audio and TTS. Set IVR_ENABLED=true only for the configured service.
-2. Check `/api/ivr/status`: ready=true requires core configuration, database reachability, ASR models loaded/access granted, and verified number mapping. It is a readiness probe, not a successful-call or accuracy benchmark. LLM and native-language playback still require real tests.
+1. Verify actual ASR and N-ATLAS text responses, database connectivity, number mapping, prompt audio and TTS. Read-only checks at `/api/ivr/status` run while IVR_ENABLED=false. `providerVerified` confirms credentials; `numberOwned` confirms the configured voice-capable number; `webhookConfigured` confirms its exact POST mapping. `accountType` distinguishes Trial from Full. Trial and suspended accounts are not advertised for public calling.
+2. `setupReady=true` requires core configuration, reachable database, loaded ASR/text models, an active Full provider account and verified number mapping. Set IVR_ENABLED=true for controlled acceptance calls; `ready=true` then exposes the number. These checks do not prove carrier reachability, available credit, successful calls or model accuracy. LLM and native-language playback still require real tests.
 3. Use consented, non-sensitive test concerns. Verify every language: choose keypad option, decline consent, agree, speak after beep, press #, wait, hear guidance, replay, record another concern, change language and hang up.
 4. Test silence, invalid digits, long recordings, inference failure, slow generation, duplicate callbacks, missing device audio, restarted workers and expired media links. Confirm provider recordings are deleted and database rows expire.
 5. Check caller charges and Nigerian caller reachability in the provider account before publishing the number. The application does not claim toll-free access.

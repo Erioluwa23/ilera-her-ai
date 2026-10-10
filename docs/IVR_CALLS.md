@@ -14,6 +14,8 @@ After an answer, authenticated callers can press 5 then 1 to permanently delete 
 
 Deployment alone does not allocate a number or activate phone calls. The free development PostgreSQL instance on Render is connected through the app's existing `DATABASE_URL`, which IVR also uses by default. See [development database](DEVELOPMENT_DATABASE.md) for the resource and migration plan. Configure these server-only variables from `.env.example`:
 
+For a nonprofit pilot without an initial payment, see [the credit application brief](IVR_CREDIT_PILOT.md). Provider eligibility and credit approval are external requirements; the application does not create free telephone numbers.
+
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`: the account owning the number.
 - `IVR_PHONE_NUMBER`: an owned voice-capable E164 number. Provision it in your provider account with the required local registration. The setup script configures an existing number; it does not buy one.
 - `IVR_DATABASE_URL`: optional separate PostgreSQL connection for durable jobs and profiles; defaults to the app's `DATABASE_URL`. Prefer an internal Render URL in the same region. Use a durable plan for real caller history; an expiring free database is unsuitable for long-term operation.
@@ -25,6 +27,8 @@ Deployment alone does not allocate a number or activate phone calls. The free de
 - `IVR_ENABLED=true` only when the above is ready and acceptance calls have been arranged.
 
 Run `node scripts/configure-ivr-number.mjs` with the provider variables in your trusted environment. It verifies ownership and voice capability before setting the number's voice webhook to HTTPS POST `/api/ivr/incoming`. Alternatively configure the same endpoint in Twilio's number settings. `/api/ivr/status` verifies the owned number's exact webhook and method before displaying a call button. The service remains in setup mode if its readiness checks fail. Use an always-on web service for production calls; a free service that sleeps may miss the provider webhook deadline after a cold start. The existing free Render service has not been upgraded. Do not paste secrets into chat or commit them.
+
+Setup checks also run while calls are disabled. `setupReady` reports whether dependencies are ready before enabling calls; `ready` additionally requires `IVR_ENABLED=true`. Credentials, number ownership and webhook configuration have separate check fields. An active Full Twilio account is required for public dial-in readiness; a Trial account is not advertised as available. Model and database failures do not suppress the provider diagnostics. These checks do not verify remaining credit or replace real acceptance calls.
 
 ## Language audio
 
