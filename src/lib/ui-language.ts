@@ -1,8 +1,10 @@
 "use client";
 import { useLanguage } from "./use-language";
 import type { IlaraLanguage } from "./languages";
+import { cycleRows } from "./cycle-prediction/ui-rows";
 // A single interface catalogue. Clinical answers keep their existing reviewed localization.
 const rows = {
+  ...cycleRows,
   listenReply: [
     "Listen to reply",
     "Gbọ́ ìdáhùn",
@@ -428,10 +430,10 @@ const rows = {
     "A na-eziga okwu ị kwadoro na mkparịta ụka ị họọrọ mgbe ị pịrị Zipu.",
   ],
   localDisclosure: [
-    "Records stay in this browser. Clearing site data removes them. Shared devices may expose them.",
-    "Àkọsílẹ̀ wà nínú aṣàwákiri yìí. Pípa dátà ojú ìwé rẹ́ yọ wọn. Ẹ̀rọ àjọpín lè fi wọn hàn.",
-    "Bayanai suna cikin wannan burauza. Goge bayanan shafin yana cire su. Na'urar haɗin gwiwa na iya bayyana su.",
-    "Ndekọ dị na nchọgharị a. Ihichapụ data saịtị ga-ewepụ ha. Ngwaọrụ a na-ekekọrịta nwere ike igosi ha.",
+    "Voice conversations and earlier browser period records stay on this device. Clearing site data removes them. Shared devices may expose them.",
+    "Ìjíròrò ohùn àti àkọsílẹ̀ òṣù aṣàwákiri àtijọ́ wà lórí ẹ̀rọ yìí. Pípa dátà ojú ìwé rẹ́ yọ wọn. Ẹ̀rọ àjọpín lè fi wọn hàn.",
+    "Tattaunawar murya da tsofaffin bayanan haila na burauza suna wannan na'ura. Goge bayanan shafin yana cire su. Na'urar haɗin gwiwa na iya bayyana su.",
+    "Mkparịta ụka olu na ndekọ oge nsọ ochie dị na ngwaọrụ a. Ihichapụ data saịtị ga-ewepụ ha. Ngwaọrụ a na-ekekọrịta nwere ike igosi ha.",
   ],
   processingDisclosure: [
     "Audio and confirmed text are processed externally by the configured speech and AI services. Account and feedback records are stored on the server.",
@@ -686,10 +688,10 @@ const rows = {
     "Ajụjụ gị agaghị agafe mkpụrụedemede 1,200.",
   ],
   accountStorage: [
-    "Account details and submitted feedback are stored on our server. Browser records are not account-specific. Anyone using this browser can access them after signing in.",
-    "A ń tọ́jú àlàyé àkọọ́lẹ̀ àti èrò tí a fi ránṣẹ́ sí wa lórí ẹ̀rọ ìpamọ́ wa. Àkọsílẹ̀ aṣàwákiri kò jẹ́ ti àkọọ́lẹ̀ kan ṣoṣo. Ẹnikẹ́ni tó ń lo aṣàwákiri yìí lè rí wọn lẹ́yìn tí wọ́n wọlé.",
-    "Ana adana bayanan asusu da ra’ayin da aka aika a sabarmu. Bayanan burauza ba na asusu guda ba ne. Duk wanda ke amfani da wannan burauza zai iya ganin su bayan shiga.",
-    "A na-echekwa nkọwa akaụntụ na nzaghachi ezigara na sava anyị. Ndekọ ihe nchọgharị abụghị nke otu akaụntụ. Onye ọ bụla na-eji ihe nchọgharị a nwere ike ịhụ ha mgbe ọ banyere.",
+    "New cycle records belong to your signed-in account. Voice conversations and earlier browser records are shared on this browser and can be accessed by other signed-in users on this device.",
+    "Àkọsílẹ̀ òṣù tuntun jẹ́ ti àkọọ́lẹ̀ tí o wọlé sí. Ìjíròrò ohùn àti àkọsílẹ̀ aṣàwákiri àtijọ́ jẹ́ àjọpín, àwọn mìíràn tó wọlé lórí ẹ̀rọ yìí lè rí wọn.",
+    "Sabbin bayanan zagaye na asusun da kika shiga ne. Ana raba tattaunawar murya da tsofaffin bayanan burauza; sauran masu shiga a wannan na'ura za su iya ganin su.",
+    "Ndekọ oge nsọ ọhụrụ bụ nke akaụntụ ị banyere. A na-ekekọrịta mkparịta ụka olu na ndekọ nchọgharị ochie; ndị ọzọ banyere na ngwaọrụ a nwere ike ịhụ ha.",
   ],
   callCharges: [
     "Network and international call charges may apply. Calls require recording consent; ÌleraHer is not an emergency service.",
@@ -752,24 +754,109 @@ const rows = {
     "Ba a iya yin rikodi ba. Duba izinin makirufo kuma a sake gwadawa.",
     "Enweghị ike idekọ. Lelee ikike igwe okwu wee nwaa ọzọ.",
   ],
-  phoneSetup: ["Calling PIN & replies", "PIN ìpè àti èsì", "PIN na kira da amsoshi", "PIN oku na nzaghachi"],
-  phoneCallingPin: ["Six digit calling PIN", "PIN ìpè olónọ́mbà mẹ́fà", "PIN na kira mai lambobi shida", "PIN oku nwere ọnụọgụ isii"],
-  phoneConfirmPin: ["Confirm calling PIN", "Jẹ́rìí PIN ìpè", "Tabbatar da PIN na kira", "Kwenye PIN oku"],
-  phonePinMismatch: ["Calling PINs do not match.", "Àwọn PIN ìpè kò bá ara wọn mu.", "PIN na kira ba su daidaita ba.", "PIN oku adabaghị."],
-  phoneSavePin: ["Save calling PIN", "Fi PIN ìpè pamọ́", "Ajiye PIN na kira", "Chekwaa PIN oku"],
-  phoneRegistered: ["Your registered number", "Nọ́mbà tí o forúkọsílẹ̀", "Lambar da kika yi rajista", "Nọmba ị debanyere"],
-  phoneSaveReplies: ["Save played call replies for 30 days", "Fi èsì ìpè tí a gbọ́ pamọ́ fún ọjọ́ 30", "Ajiye amsoshin kira da aka saurara na kwanaki 30", "Chekwaa nzaghachi oku e gere ruo ụbọchị 30"],
-  phonePrivacyHint: ["Calls process short voice recordings. Saving replies is optional. Your browser period logs are not available by phone.", "Ìpè ń ṣe àkọsílẹ̀ ohùn kúkúrú. Fífipamọ́ èsì jẹ́ àṣàyàn. Àkọsílẹ̀ òṣù aṣàwákiri kò wà lórí ìpè.", "Ana sarrafa gajerun rikodin murya a kira. Ajiye amsoshi zaɓi ne. Bayanan haila na burauza ba sa samuwa ta waya.", "Oku na-ahazi obere ndekọ olu. Ịchekwa nzaghachi bụ nhọrọ. Ndekọ oge nsọ nchọgharị adịghị na oku."],
-  phoneRemove: ["Disable calling & delete replies", "Dá ìpè dúró kí o pa èsì rẹ́", "Kashe kira da goge amsoshi", "Gbanyụọ oku ma hichapụ nzaghachi"],
-  phonePinChangeHint: ["Changing your PIN ends active calls. Turning off saved replies deletes previous call replies.", "Yíyí PIN rẹ padà ń parí ìpè tó ń lọ. Dídá fífi èsì pamọ́ dúró ń pa èsì àtijọ́ rẹ́.", "Canza PIN yana ƙare kiran da ake yi. Kashe ajiyar amsoshi yana goge tsoffin amsoshin kira.", "Ịgbanwe PIN na-akwụsị oku na-aga. Ịkwụsị ichekwa nzaghachi na-ehichapụ nzaghachi ochie."],
+  phoneSetup: [
+    "Calling PIN & replies",
+    "PIN ìpè àti èsì",
+    "PIN na kira da amsoshi",
+    "PIN oku na nzaghachi",
+  ],
+  phoneCallingPin: [
+    "Six digit calling PIN",
+    "PIN ìpè olónọ́mbà mẹ́fà",
+    "PIN na kira mai lambobi shida",
+    "PIN oku nwere ọnụọgụ isii",
+  ],
+  phoneConfirmPin: [
+    "Confirm calling PIN",
+    "Jẹ́rìí PIN ìpè",
+    "Tabbatar da PIN na kira",
+    "Kwenye PIN oku",
+  ],
+  phonePinMismatch: [
+    "Calling PINs do not match.",
+    "Àwọn PIN ìpè kò bá ara wọn mu.",
+    "PIN na kira ba su daidaita ba.",
+    "PIN oku adabaghị.",
+  ],
+  phoneSavePin: [
+    "Save calling PIN",
+    "Fi PIN ìpè pamọ́",
+    "Ajiye PIN na kira",
+    "Chekwaa PIN oku",
+  ],
+  phoneRegistered: [
+    "Your registered number",
+    "Nọ́mbà tí o forúkọsílẹ̀",
+    "Lambar da kika yi rajista",
+    "Nọmba ị debanyere",
+  ],
+  phoneSaveReplies: [
+    "Save played call replies for 30 days",
+    "Fi èsì ìpè tí a gbọ́ pamọ́ fún ọjọ́ 30",
+    "Ajiye amsoshin kira da aka saurara na kwanaki 30",
+    "Chekwaa nzaghachi oku e gere ruo ụbọchị 30",
+  ],
+  phonePrivacyHint: [
+    "Calls process short voice recordings. Saving replies is optional. Your browser period logs are not available by phone.",
+    "Ìpè ń ṣe àkọsílẹ̀ ohùn kúkúrú. Fífipamọ́ èsì jẹ́ àṣàyàn. Àkọsílẹ̀ òṣù aṣàwákiri kò wà lórí ìpè.",
+    "Ana sarrafa gajerun rikodin murya a kira. Ajiye amsoshi zaɓi ne. Bayanan haila na burauza ba sa samuwa ta waya.",
+    "Oku na-ahazi obere ndekọ olu. Ịchekwa nzaghachi bụ nhọrọ. Ndekọ oge nsọ nchọgharị adịghị na oku.",
+  ],
+  phoneRemove: [
+    "Disable calling & delete replies",
+    "Dá ìpè dúró kí o pa èsì rẹ́",
+    "Kashe kira da goge amsoshi",
+    "Gbanyụọ oku ma hichapụ nzaghachi",
+  ],
+  phonePinChangeHint: [
+    "Changing your PIN ends active calls. Turning off saved replies deletes previous call replies.",
+    "Yíyí PIN rẹ padà ń parí ìpè tó ń lọ. Dídá fífi èsì pamọ́ dúró ń pa èsì àtijọ́ rẹ́.",
+    "Canza PIN yana ƙare kiran da ake yi. Kashe ajiyar amsoshi yana goge tsoffin amsoshin kira.",
+    "Ịgbanwe PIN na-akwụsị oku na-aga. Ịkwụsị ichekwa nzaghachi na-ehichapụ nzaghachi ochie.",
+  ],
   phoneReplies: ["Call replies", "Èsì ìpè", "Amsoshin kira", "Nzaghachi oku"],
-  phoneNoReplies: ["No saved call replies yet.", "Kò sí èsì ìpè tí a fi pamọ́ síbẹ̀.", "Babu amsoshin kira da aka ajiye tukuna.", "Enweghị nzaghachi oku echekwara ugbu a."],
-  phonePilotPending: ["The phone pilot is being connected. You can prepare your calling PIN now.", "A ń so ìpè ìdánwò pọ̀. O lè ṣètò PIN ìpè rẹ báyìí.", "Ana haɗa gwajin kira. Za ki iya saita PIN na kira yanzu.", "A na-ejikọta nnwale oku. Ị nwere ike ịkwadebe PIN oku ugbu a."],
-  phoneCallHint: ["Call, choose a language, and enter your calling PIN using the keypad.", "Pè, yan èdè, kí o tẹ PIN ìpè rẹ.", "Kira, zaɓi harshe, sannan shigar da PIN na kira.", "Kpọọ oku, họrọ asụsụ, ma tinye PIN oku."],
-  phoneSaved: ["Calling PIN saved.", "A ti fi PIN ìpè pamọ́.", "An ajiye PIN na kira.", "E chekwara PIN oku."],
-  phoneRemoved: ["Calling disabled and saved call replies deleted.", "A ti dá ìpè dúró a sì pa èsì ìpè rẹ́.", "An kashe kira kuma an goge amsoshin kira.", "E gbanyụọla oku ma hichapụ nzaghachi oku."],
-  phoneAccountError: ["Calling settings could not be updated. Try again when connected.", "A kò lè ṣàtúnṣe ètò ìpè. Gbìyànjú nígbà tí ìsopọ̀ bá wà.", "An kasa sabunta saitunan kira. Sake gwadawa idan akwai haɗi.", "Enweghị ike imelite ntọala oku. Gbalịa mgbe ị jikọrọ."],
-  phoneReviewed: ["Reviewed guidance", "Ìtọ́sọ́nà tí a ṣàyẹ̀wò", "Shawarar da aka duba", "Nduzi a nyochara"],
+  phoneNoReplies: [
+    "No saved call replies yet.",
+    "Kò sí èsì ìpè tí a fi pamọ́ síbẹ̀.",
+    "Babu amsoshin kira da aka ajiye tukuna.",
+    "Enweghị nzaghachi oku echekwara ugbu a.",
+  ],
+  phonePilotPending: [
+    "The phone pilot is being connected. You can prepare your calling PIN now.",
+    "A ń so ìpè ìdánwò pọ̀. O lè ṣètò PIN ìpè rẹ báyìí.",
+    "Ana haɗa gwajin kira. Za ki iya saita PIN na kira yanzu.",
+    "A na-ejikọta nnwale oku. Ị nwere ike ịkwadebe PIN oku ugbu a.",
+  ],
+  phoneCallHint: [
+    "Call, choose a language, and enter your calling PIN using the keypad.",
+    "Pè, yan èdè, kí o tẹ PIN ìpè rẹ.",
+    "Kira, zaɓi harshe, sannan shigar da PIN na kira.",
+    "Kpọọ oku, họrọ asụsụ, ma tinye PIN oku.",
+  ],
+  phoneSaved: [
+    "Calling PIN saved.",
+    "A ti fi PIN ìpè pamọ́.",
+    "An ajiye PIN na kira.",
+    "E chekwara PIN oku.",
+  ],
+  phoneRemoved: [
+    "Calling disabled and saved call replies deleted.",
+    "A ti dá ìpè dúró a sì pa èsì ìpè rẹ́.",
+    "An kashe kira kuma an goge amsoshin kira.",
+    "E gbanyụọla oku ma hichapụ nzaghachi oku.",
+  ],
+  phoneAccountError: [
+    "Calling settings could not be updated. Try again when connected.",
+    "A kò lè ṣàtúnṣe ètò ìpè. Gbìyànjú nígbà tí ìsopọ̀ bá wà.",
+    "An kasa sabunta saitunan kira. Sake gwadawa idan akwai haɗi.",
+    "Enweghị ike imelite ntọala oku. Gbalịa mgbe ị jikọrọ.",
+  ],
+  phoneReviewed: [
+    "Reviewed guidance",
+    "Ìtọ́sọ́nà tí a ṣàyẹ̀wò",
+    "Shawarar da aka duba",
+    "Nduzi a nyochara",
+  ],
 } as const;
 export type UIKey = keyof typeof rows;
 const index: Record<IlaraLanguage, number> = {

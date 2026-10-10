@@ -11,6 +11,7 @@ import { assessSymptoms } from "@/lib/safety";
 import { todayDate } from "@/lib/ui-utils";
 import { useUI } from "@/lib/ui-language";
 import Icon, { type IconName } from "./Icon";
+import CycleSetup, { cycleErrorKey } from "./CycleSetup";
 const symptomChoices: {
   value: string;
   key: "cramps" | "tired" | "tender" | "headache";
@@ -22,6 +23,7 @@ const symptomChoices: {
   { value: "Headache", key: "headache", icon: "info" },
 ];
 type Draft = {
+  ownerId: string | null;
   date: string;
   end: string;
   ongoing: boolean;
@@ -30,6 +32,7 @@ type Draft = {
   symptoms: string[];
   notes: string;
   editingId: string | null;
+  previousCycle: "unknown" | "complete" | "missing";
 };
 export default function PeriodLogForm({
   initialDate,
@@ -42,8 +45,9 @@ export default function PeriodLogForm({
     { t } = useUI(),
     router = useRouter(),
     today = todayDate(),
-    initialized = useRef(false);
+    initialized = useRef<string | null>(null);
   const [draft, setDraft] = useState<Draft>({
+      ownerId: null,
       date: initialDate,
       end: "",
       ongoing: true,
@@ -52,19 +56,29 @@ export default function PeriodLogForm({
       symptoms: [],
       notes: "",
       editingId: null,
+      previousCycle: "unknown",
     }),
     [dirty, setDirty] = useState(false),
     [message, setMessage] = useState(""),
     [more, setMore] = useState(false),
     [noteOpen, setNoteOpen] = useState(false);
-  const key = "ileraher-log-draft:" + (recordId || initialDate);
+  const key =
+    "ileraher-log-draft:" + store.userId + ":" + (recordId || initialDate);
   useEffect(() => {
-    if (!store.ready || initialized.current) return;
-    initialized.current = true;
+    if (
+      !store.ready ||
+      !store.userId ||
+      !store.preferences.consent ||
+      initialized.current === store.userId
+    )
+      return;
+    initialized.current = store.userId;
+    setDirty(false);
     const existing = recordId
       ? store.logs.find((x) => x.id === recordId)
       : periodForDate(store.logs, initialDate);
     let value: Draft = {
+      ownerId: store.userId,
       date: existing?.startDate || initialDate,
       end: existing?.endDate || "",
       ongoing: existing ? existing.ongoing === true : false,
@@ -73,6 +87,7 @@ export default function PeriodLogForm({
       symptoms: existing?.symptoms || [],
       notes: existing?.notes || "",
       editingId: existing?.id || null,
+      previousCycle: existing?.previousCycle || "unknown",
     };
     if (existing) {
       const daily = dailyEntry(existing, initialDate);
@@ -88,19 +103,28 @@ export default function PeriodLogForm({
       const cached = JSON.parse(sessionStorage.getItem(key) || "null");
       if (
         cached &&
+        cached.ownerId === store.userId &&
         typeof cached.date === "string" &&
         ["spotting", "light", "medium", "heavy"].includes(cached.flow) &&
         typeof cached.pain === "number"
       ) {
-        value = cached;
+        value = { ...cached, previousCycle: cached.previousCycle || "unknown" };
         setDirty(true);
       }
     } catch {}
     setDraft(value);
     setNoteOpen(!!value.notes);
-  }, [store.ready, store.logs, recordId, initialDate, key]);
+  }, [
+    store.ready,
+    store.userId,
+    store.preferences.consent,
+    store.logs,
+    recordId,
+    initialDate,
+    key,
+  ]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || !store.userId || draft.ownerId !== store.userId) return;
     try {
       sessionStorage.setItem(key, JSON.stringify(draft));
     } catch {}
@@ -120,13 +144,14 @@ export default function PeriodLogForm({
       window.removeEventListener("beforeunload", unload);
       document.removeEventListener("click", click, true);
     };
-  }, [dirty, draft, key, t]);
+  }, [dirty, draft, key, t, store.userId]);
   function update(p: Partial<Draft>) {
     setDraft((v) => ({ ...v, ...p }));
     setDirty(true);
     setMessage("");
   }
-  function save() {
+  async function save() {
+    if (draft.ownerId !== store.userId) return;
     const original = store.logs.find((x) => x.id === draft.editingId);
     const candidate =
       initialDate >= draft.date && initialDate <= today
@@ -149,6 +174,7 @@ export default function PeriodLogForm({
       startDate: draft.date,
       endDate: draft.ongoing ? undefined : draft.end || undefined,
       ongoing: draft.ongoing,
+      previousCycle: draft.previousCycle,
       flow: draft.flow,
       pain: draft.pain,
       symptoms: draft.symptoms,
@@ -168,18 +194,37 @@ export default function PeriodLogForm({
       setMessage(t(invalid));
       return;
     }
-    if (store.persist([...store.logs.filter((x) => x.id !== log.id), log])) {
+    if (await store.save(log)) {
       setDirty(false);
       try {
         sessionStorage.removeItem(key);
       } catch {}
       router.push("/cycle?date=" + day + "&saved=1");
-    } else setMessage(t("saveError"));
+    } else setMessage(t("serverSaveError"));
   }
   const safety = assessSymptoms({
     pain: draft.pain,
     heavyBleeding: draft.flow === "heavy",
   });
+  if (!store.ready || !store.userId || !store.preferences.consent)
+    return (
+      <section className="ux-form-screen">
+        <h1>{t("logPeriod")}</h1>
+        <CycleSetup store={store} />
+      </section>
+    );
+  if (recordId && !store.logs.some((log) => log.id === recordId))
+    return (
+      <section className="ux-form-screen">
+        <p role="alert">{t("recordChanged")}</p>
+        <button
+          className="ux-btn ux-secondary"
+          onClick={() => void store.reload()}
+        >
+          {t("retryCycles")}
+        </button>
+      </section>
+    );
   return (
     <section className="ux-form-screen">
       <div className="ux-page-heading">
@@ -239,6 +284,27 @@ export default function PeriodLogForm({
             {t("ongoing")}
           </label>
         </fieldset>
+        {store.logs.some(
+          (log) => log.id !== draft.editingId && log.startDate < draft.date,
+        ) && (
+          <fieldset>
+            <legend>{t("completeGap")}</legend>
+            <p className="ux-small">{t("gapHint")}</p>
+            <select
+              aria-label={t("completeGap")}
+              value={draft.previousCycle}
+              onChange={(e) =>
+                update({
+                  previousCycle: e.target.value as Draft["previousCycle"],
+                })
+              }
+            >
+              <option value="unknown">{t("unknownGap")}</option>
+              <option value="complete">{t("completeGap")}</option>
+              <option value="missing">{t("missingGap")}</option>
+            </select>
+          </fieldset>
+        )}
         <fieldset>
           <legend>{t("flow")}</legend>
           <div className="ux-flow-choices">
@@ -360,18 +426,30 @@ export default function PeriodLogForm({
             {message}
           </p>
         )}
+        {store.error && (
+          <p className="ux-alert" role="alert">
+            {t(cycleErrorKey(store.error))}{" "}
+            <button
+              className="ux-text-button"
+              onClick={() => void store.reload()}
+            >
+              {t("retryCycles")}
+            </button>
+          </p>
+        )}
         <button
           className="ux-btn ux-full"
-          disabled={!store.ready}
+          disabled={!store.ready || store.busy}
           onClick={save}
         >
           <Icon name="check" />
-          {t("save")}
+          {store.busy ? t("loading") : t("save")}
         </button>
         <p className="ux-storage-note">
           <Icon name="lock" size={16} />
-          {t("savedBrowser")}
+          {t("savedAccount")}
         </p>
+        <p className="ux-small ux-muted">{t("cycleDraftPrivacy")}</p>
       </div>
     </section>
   );

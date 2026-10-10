@@ -14,6 +14,14 @@ export default function LogoutButton() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
+      try {
+        for (const key of Object.keys(sessionStorage))
+          if (
+            key.startsWith("ileraher-log-draft:") ||
+            key.startsWith("ileraher-calendar-view")
+          )
+            sessionStorage.removeItem(key);
+      } catch {}
       router.replace("/login");
       router.refresh();
     }

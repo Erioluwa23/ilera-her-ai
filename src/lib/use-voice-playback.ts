@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { IlaraLanguage } from "./languages";
 export function useVoicePlayback() {
   const [state, setState] = useState<"idle" | "playing" | "paused">("idle"),
@@ -12,12 +12,16 @@ export function useVoicePlayback() {
     },
     [],
   );
-  function stop() {
+  const stop = useCallback(() => {
     active.current = null;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setState("idle");
-  }
-  function play(text: string, language: IlaraLanguage) {
+  }, []);
+  function play(
+    text: string,
+    language: IlaraLanguage,
+    options?: { localOnly?: boolean },
+  ) {
     stop();
     setError("");
     if (!("speechSynthesis" in window)) {
@@ -28,8 +32,9 @@ export function useVoicePlayback() {
       .getVoices()
       .find(
         (x) =>
+          (!options?.localOnly || x.localService) &&
           x.lang.toLowerCase().split("-")[0] ===
-          language.toLowerCase().split("-")[0],
+            language.toLowerCase().split("-")[0],
       );
     if (!voice) {
       setError(

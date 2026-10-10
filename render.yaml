@@ -6,11 +6,13 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    autoDeploy: true
+    autoDeploy: false
     envVars:
       - key: NODE_VERSION
         value: "22"
       - key: HF_TOKEN
         sync: false
       - key: AUTH_SECRET
+        sync: false
+      - key: CYCLE_DATA_ENCRYPTION_KEY
         sync: false

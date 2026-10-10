@@ -1,6 +1,6 @@
-const CACHE = "ileraher-lite-v3";
+const CACHE = "ileraher-lite-v4";
 // These routes render an account-neutral shell; health records are loaded from
-// browser storage. Never cache APIs, account pages or the server-rendered admin.
+// private account APIs or browser audio storage. Never cache APIs or the server-rendered admin.
 const SHELLS = new Set([
   "/",
   "/cycle",
@@ -83,7 +83,7 @@ self.addEventListener("fetch", (event) => {
           return (
             (await caches.match("/lite")) ||
             new Response(
-              '<!doctype html><meta name="viewport" content="width=device-width"><title>Offline · ÌleraHer</title><body style="font:16px system-ui;background:#FBF8FD;color:#30213F;padding:24px"><h1>You are offline</h1><p>This page has not been saved for offline access. Your recordings and period logs remain in this browser. Reconnect, then open the app again.</p></body>',
+              '<!doctype html><meta name="viewport" content="width=device-width"><title>Offline · ÌleraHer</title><body style="font:16px system-ui;background:#FBF8FD;color:#30213F;padding:24px"><h1>You are offline</h1><p>This page has not been saved for offline access. Browser recordings remain on this device. Account cycle records need a connection. Reconnect, then open the app again.</p></body>',
               { status: 503, headers: { "content-type": "text/html" } },
             )
           );
