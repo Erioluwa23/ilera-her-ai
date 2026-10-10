@@ -1,123 +1,180 @@
 "use client";
-
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-
-export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
-  const router = useRouter();
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const signup = mode === "signup";
-
+import { useLanguage } from "@/lib/use-language";
+import { copy } from "@/lib/ui-copy";
+import { safeReturn } from "@/lib/return-route";
+import { scopedKey } from "@/lib/experience";
+import LanguagePicker from "./LanguagePicker";
+import EnglishContent from "./EnglishContent";
+export default function AuthForm({
+  mode,
+  next = "/",
+}: {
+  mode: "login" | "signup";
+  next?: string;
+}) {
+  const router = useRouter(),
+    { language } = useLanguage(),
+    [phone, setPhone] = useState(""),
+    [password, setPassword] = useState(""),
+    [confirm, setConfirm] = useState(""),
+    [visible, setVisible] = useState(false),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const active = useRef(false),
+    errorRef = useRef<HTMLParagraphElement>(null),
+    signup = mode === "signup",
+    target = safeReturn(next);
+  function fail(message: string) {
+    setError(message);
+    requestAnimationFrame(() => errorRef.current?.focus());
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (active.current) return;
     setError("");
     if (signup && password !== confirm) {
-      setError("Passwords do not match.");
+      fail("Passwords do not match.");
       return;
     }
-
+    active.current = true;
     setBusy(true);
     try {
-      const response = await fetch(`/api/auth/${mode}`, {
+      const r = await fetch(`/api/auth/${mode}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ phone, password }),
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setError(data.error || "Please try again.");
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        fail(
+          r.status === 401
+            ? "Incorrect phone number or password."
+            : "Sign in is temporarily unavailable. Try again.",
+        );
         return;
       }
-      router.replace("/");
+      let setup = false;
+      try {
+        setup =
+          JSON.parse(
+            localStorage.getItem(
+              scopedKey(String(data.user.id), "preferences-v1"),
+            ) || "{}",
+          ).onboardingVersionCompleted >= 1;
+      } catch {
+        /* Onboarding explains storage recovery. */
+      }
+      router.replace(
+        setup
+          ? target === "/"
+            ? "/home"
+            : target
+          : "/onboarding?next=" +
+              encodeURIComponent(target === "/" ? "/home" : target),
+      );
       router.refresh();
     } catch {
-      setError("Could not connect. Check your internet connection and try again.");
+      fail("Could not connect. Check your internet connection and try again.");
     } finally {
+      active.current = false;
       setBusy(false);
     }
   }
-
   return (
     <main className="authPage">
-      <section className="authCard" aria-labelledby="auth-title">
-        <Link className="brand authBrand" href={signup ? "/signup" : "/login"}>
+      <section className="authCard">
+        <Link className="brand authBrand" href="/login">
           ÌleraHer <span>AI</span>
         </Link>
-        <span className="eyebrow">
-          {signup ? "Create your private account" : "Welcome back"}
-        </span>
-        <h1 id="auth-title">
-          {signup ? "Access ÌleraHer with your phone number." : "Sign in to ÌleraHer."}
-        </h1>
-        <p className="muted">
-          {signup
-            ? "Use a phone number you can remember. Your password is stored securely and is never shown back to you."
-            : "Enter the phone number and password you used when creating your account."}
-        </p>
-
+        <LanguagePicker />
+        <p>{copy(language, "purpose")}</p>
+        <h1>{copy(language, signup ? "signUp" : "signIn")}</h1>
         <form className="authForm" onSubmit={submit}>
           <label>
-            Phone number
+            {copy(language, "phone")}
             <input
               type="tel"
               autoComplete="tel"
               inputMode="tel"
-              placeholder="0801 234 5678"
               value={phone}
-              onChange={(event) => setPhone(event.target.value)}
+              onChange={(e) => setPhone(e.target.value)}
               required
             />
           </label>
           <label>
-            Password
+            {copy(language, "password")}
             <input
-              type="password"
+              type={visible ? "text" : "password"}
               autoComplete={signup ? "new-password" : "current-password"}
               minLength={8}
               maxLength={128}
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               required
+              aria-describedby="password-hint"
             />
           </label>
+          <EnglishContent>
+            <small id="password-hint">
+              Use 8–128 characters. Password managers and paste are supported.
+            </small>
+          </EnglishContent>
+          <button
+            className="textbtn"
+            type="button"
+            aria-pressed={visible}
+            onClick={() => setVisible(!visible)}
+          >
+            {copy(language, visible ? "hidePassword" : "showPassword")}
+          </button>
           {signup && (
             <label>
-              Confirm password
+              {copy(language, "confirmPassword")}
               <input
-                type="password"
+                type={visible ? "text" : "password"}
                 autoComplete="new-password"
                 minLength={8}
                 maxLength={128}
                 value={confirm}
-                onChange={(event) => setConfirm(event.target.value)}
+                onChange={(e) => setConfirm(e.target.value)}
                 required
               />
             </label>
           )}
           {error && (
-            <p className="authError" role="alert">
+            <p className="authError" ref={errorRef} tabIndex={-1} role="alert">
               {error}
             </p>
           )}
-          <button className="btn fullWidth" disabled={busy} type="submit">
-            {busy ? "Please wait…" : signup ? "Create account" : "Sign in"}
+          <button className="btn fullWidth" disabled={busy}>
+            {busy ? "…" : copy(language, signup ? "signUp" : "signIn")}
           </button>
         </form>
-
-        <p className="authSwitch">
-          {signup ? "Already have an account?" : "New to ÌleraHer?"}{" "}
-          <Link href={signup ? "/login" : "/signup"}>
-            {signup ? "Sign in" : "Create an account"}
+        <div className="screenActions">
+          <Link
+            className="textlink"
+            href={
+              (signup ? "/login" : "/signup") +
+              "?next=" +
+              encodeURIComponent(target)
+            }
+          >
+            {copy(language, signup ? "signIn" : "signUp")}
           </Link>
-        </p>
-        <small className="muted">
-          ÌleraHer provides health information and does not replace professional medical care.
-        </small>
+          <Link className="textlink" href="/help">
+            {copy(language, "help")}
+          </Link>
+        </div>
+        <EnglishContent>
+          <p className="small">
+            Health records stay on this device. Signing in is not cloud backup.
+            People using the same unlocked browser may be able to access local
+            data.
+          </p>
+        </EnglishContent>
       </section>
     </main>
   );

@@ -40,6 +40,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mocks.fetch);
   vi.stubEnv("TWILIO_ACCOUNT_SID", "AC" + "a".repeat(32));
   vi.stubEnv("TWILIO_AUTH_TOKEN", "test");
+  vi.stubEnv("AI_PROVIDER_MODE", "natlas");
   mocks.claim.mockResolvedValue({
     recording: "RE" + "c".repeat(32),
     lease: "lease",

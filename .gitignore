@@ -7,3 +7,7 @@ node_modules
 .DS_Store
 next-env.d.ts
 __pycache__/
+
+*.tsbuildinfo
+playwright-report/
+test-results/

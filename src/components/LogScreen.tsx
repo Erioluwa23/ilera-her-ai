@@ -1,12 +1,19 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { validDate } from "@/lib/calendar";
+import { todayIn, validDate } from "@/lib/health/date-only";
 import PeriodLogForm from "./PeriodLogForm";
 export default function LogScreen() {
-  const search = useSearchParams(),
-    requested = search.get("date") ?? "";
-  const date = validDate(requested)
-    ? requested
-    : new Date().toISOString().slice(0, 10);
-  return <PeriodLogForm key={date} initialDate={date} />;
+  const params = useSearchParams(),
+    requested = params.get("date"),
+    recordId = params.get("id") || undefined;
+  const date =
+    requested && validDate(requested) ? requested : requested ? "" : todayIn();
+  return (
+    <PeriodLogForm
+      key={recordId || requested || "new"}
+      initialDate={date}
+      recordId={recordId}
+      invalidDate={!!requested && !validDate(requested)}
+    />
+  );
 }

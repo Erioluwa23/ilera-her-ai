@@ -100,8 +100,10 @@ export function readState(token: string, call?: string): CallState {
     Buffer.from(data, "base64url").toString(),
   ) as CallState;
   if (
-    (state.callerKey !== undefined && !/^[a-f0-9]{64}$/.test(state.callerKey)) ||
-    (state.profileId !== undefined && !/^[a-f0-9-]{36}$/.test(state.profileId)) ||
+    (state.callerKey !== undefined &&
+      !/^[a-f0-9]{64}$/.test(state.callerKey)) ||
+    (state.profileId !== undefined &&
+      !/^[a-f0-9-]{36}$/.test(state.profileId)) ||
     (state.previous !== undefined && !/^[a-f0-9-]{36}$/.test(state.previous)) ||
     !/^[a-f0-9-]{36}$/.test(state.id) ||
     !/^CA[a-f0-9]{32}$/i.test(state.call) ||
@@ -225,7 +227,7 @@ export function configuration() {
     origin: false,
     secret: (process.env.IVR_SESSION_SECRET?.length || 0) >= 32,
     database: !!(process.env.IVR_DATABASE_URL || process.env.DATABASE_URL),
-    llm: true, // The shared N-ATLaS runtime is the default provider.
+    llm: true, // Basic guidance remains available without an external explanation provider.
   };
   try {
     publicOrigin();

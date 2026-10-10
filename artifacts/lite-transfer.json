@@ -1,0 +1,10 @@
+{
+  "measuredAt": "2026-10-10T06:37:14.494Z",
+  "encodedInitialBytes": {
+    "/voice": 173373,
+    "/lite": 162614
+  },
+  "budgetBytes": 350000,
+  "savingsBytes": 10759,
+  "fixture": "local production HTTP, Chromium, cold context; compression differs by host"
+}

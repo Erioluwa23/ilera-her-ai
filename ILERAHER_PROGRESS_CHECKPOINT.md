@@ -1,3 +1,24 @@
+## 2026-10-10 — deployment requested, GitHub authorization blocked
+
+- The user explicitly requested “Deploy” after implementation. Deployment targets the existing Render service and repository; no new infrastructure or clinical publication is required.
+- Reverified remote `main` at `16e4f6268ec21c1327e1f98edeab2ae7ab61056b`, matching this implementation's base. The Git HTTPS proxy can read the repository.
+- `git push --dry-run origin HEAD:main` failed with HTTP 403: GitHub reported “Permission to Erioluwa23/ilera-her-ai.git denied to Atanseiye.” No push occurred. The connected GitHub identity needs repository write access before retrying.
+- Updated the deployment guide for the actual fixed ASR runtime, optional Groq/OpenAI explanation path, account/database requirements, existing service continuation and publication gates. Six Python runtime boundary tests also passed.
+- Prepared the release locally with the previously verified engineering changes and synthetic evidence. Live Render revision/configuration and deployment completion remain unverified. New clinical policies/content remain draft.
+- Continue from [Render deployment guide](docs/DEPLOY_RENDER.md); never force push, never use public test secrets in production and do not claim a successful deployment from a push alone.
+
+## 2026-10-10 — local UX/domain implementation
+
+- Implemented the attached briefs in the existing repository, branch `work`, based on `16e4f62`. This section records the original local verification before the subsequent deployment request above. Older deployment records below are historical and were not reverified in this session.
+- Added Home/Track/Ask/History navigation, allowlisted auth return targets, optional onboarding/focus/privacy, reviewed period commits with unknown clinical values, scoped History/export/import/migration, Settings/Help/feedback recovery, Lite lazy voice loading and public-only offline caching.
+- Retained N-ATLAS/NCAIR ASR. Default optional browser explanation order is now Groq → OpenAI → basic guidance; N-ATLAS text generation is an explicit demonstration mode. New conversations default to memory; device text/audio retention and external processing are separate choices. Default phone external AI is off pending processing review.
+- Added versioned date, cycle, pregnancy, testing, conception, baby and growth arithmetic, server recomputation, tri-state inputs and review gates. New pregnancy/baby/growth/conception journeys keep confirmed records; unreviewed clinical interpretations remain withheld.
+- Independently generated 304 supplied-LMS/reference-score fixtures plus 10 normalization cases from pinned official WHO Anthro in R. Full production table lookup/normalization, licensing decision, clinical interpretation and translations remain unfinished. No percentiles are published.
+- Checks: 556 tests/29 files passed; 16 browser journeys passed; production build and whitespace checks passed; lint passed with one existing unused-argument warning. Automated axe scan: 16 initial screens, zero violations. 38 screenshots include phone/desktop, Yoruba, empty/error and 200% simulated text scaling.
+- Lite fixture: 162,614 initial encoded bytes versus 173,373 for full Ask, 10,759 saved (~6.2%); local production Chromium, fresh contexts, API transfer excluded. Hosting/network/device measurements remain separate.
+- No configured service credentials were available. Actual database authentication, Groq/OpenAI inference, four-language ASR/TTS, phone calls, human screen-reader review and consented language/usability pilot were not completed. No live readiness or clinical validation is claimed.
+- Exact files, coverage, reproducible commands, release dependencies and continuation: [implementation handoff](docs/IMPLEMENTATION_HANDOFF.md), [acceptance coverage](docs/ACCEPTANCE_COVERAGE.md), [WHO fixtures](reference-fixtures/README.md), `artifacts/`.
+
 ## 2026-10-05 — spoken replies implementation
 
 - Runtime is deployed to the existing free ZeroGPU Space `Kolade1/ileraHer-natlas-runtime`; latest runtime revision `99ddb12dcc1d2ed20aebfadc4d62c5ab6295e7bf` is RUNNING.
@@ -53,12 +74,12 @@
 
 ## Real ASR evidence
 
-| Language | Required checkpoint | Fixture / expected words | Actual transcript / model / provenance | HTTP / latency |
-|---|---|---|---|---|
-| Nigerian English | NCAIR1/NigerianAccentedEnglish | Not run; runtime blocked | Unverified | Not measured |
-| Yoruba | NCAIR1/Yoruba-ASR | Not run; runtime blocked | Unverified | Not measured |
-| Hausa | NCAIR1/Hausa-ASR | Not run; runtime blocked | Unverified | Not measured |
-| Igbo | NCAIR1/Igbo-ASR | Not run; runtime blocked | Unverified | Not measured |
+| Language         | Required checkpoint            | Fixture / expected words | Actual transcript / model / provenance | HTTP / latency |
+| ---------------- | ------------------------------ | ------------------------ | -------------------------------------- | -------------- |
+| Nigerian English | NCAIR1/NigerianAccentedEnglish | Not run; runtime blocked | Unverified                             | Not measured   |
+| Yoruba           | NCAIR1/Yoruba-ASR              | Not run; runtime blocked | Unverified                             | Not measured   |
+| Hausa            | NCAIR1/Hausa-ASR               | Not run; runtime blocked | Unverified                             | Not measured   |
+| Igbo             | NCAIR1/Igbo-ASR                | Not run; runtime blocked | Unverified                             | Not measured   |
 
 ## Next action / blockers
 
@@ -85,7 +106,6 @@
 ## Exact continuation
 
 Secure sign-in as Erioluwa24 and Save profile is needed to inspect actual ZeroGPU eligibility and the four model access forms. Verify/obtain approved gated access for the identity owning the runtime read token; if a new token is needed, enter it only through secure server-secret settings. Do not send credentials in chat. Confirm compute before entering any Space secret. Then deploy the existing runtime, verify loaded revisions and memory, and perform four real production speech tests. Live ASR remains blocked; text generation and actual IVR calls remain unverified.
-
 
 ## 2026-10-03: user-authorized runtime owner change
 

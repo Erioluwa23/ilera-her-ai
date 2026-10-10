@@ -4,6 +4,7 @@ import { answerQuestion, evidenceFor, localizeHealthAnswer } from "./knowledge";
 import { callerHistory } from "./ivr-profiles";
 import { claim, finish, getJob, type JobResult } from "./ivr-jobs";
 import type { CallState } from "./ivr";
+import { explainAnswer } from "./ai/answer";
 async function boundedAudio(response: Response, max: number) {
   if (!response.ok || !response.body) throw new Error("Audio unavailable");
   const reader = response.body.getReader(),
@@ -94,32 +95,46 @@ export async function runJob(state: CallState) {
     const localized = localizeHealthAnswer(grounded, state.language);
     // Urgent care instructions stay source-grounded; generation cannot downgrade urgency.
     let generated = null;
+    let explanation: Awaited<ReturnType<typeof explainAnswer>> | null = null;
     try {
-      generated =
-        grounded.urgency === "urgent"
-          ? null
-          : await timed(
-              new NatlasLLMProvider().answer(
-                transcript.text,
-                {
-                  ...evidenceFor(grounded),
-                  conversation,
-                  callerHistory: history,
-                  relatedEvidence: history.map((turn) =>
-                    evidenceFor(answerQuestion(turn.question, state.language)),
-                  ),
-                },
-                state.language,
-              ),
-            );
+      if (process.env.AI_PROVIDER_MODE !== "natlas") {
+        explanation = await explainAnswer(
+          transcript.text,
+          state.language,
+          conversation as { role: "user"; content: string }[],
+          process.env.IVR_EXTERNAL_AI_ENABLED === "true",
+          AbortSignal.timeout(25000),
+        );
+      } else
+        generated =
+          grounded.urgency === "urgent"
+            ? null
+            : await timed(
+                new NatlasLLMProvider().answer(
+                  transcript.text,
+                  {
+                    ...evidenceFor(grounded),
+                    conversation,
+                    callerHistory: history,
+                    relatedEvidence: history.map((turn) =>
+                      evidenceFor(
+                        answerQuestion(turn.question, state.language),
+                      ),
+                    ),
+                  },
+                  state.language,
+                ),
+              );
     } catch {
       /* Preserve reviewed guidance when generation is unavailable. */
     }
     const text =
-      (generated?.text ||
-        [localized.answer, ...localized.nextSteps].join(" ")) +
+      (explanation
+        ? [explanation.answer, ...explanation.nextSteps].join(" ")
+        : generated?.text ||
+          [localized.answer, ...localized.nextSteps].join(" ")) +
       " " +
-      localized.disclaimer;
+      (explanation?.disclaimer || localized.disclaimer);
     const result: JobResult = {
       text,
       question: transcript.text,

@@ -1,0 +1,66 @@
+[
+  {
+    "route": "/home",
+    "violations": []
+  },
+  {
+    "route": "/track",
+    "violations": []
+  },
+  {
+    "route": "/cycle",
+    "violations": []
+  },
+  {
+    "route": "/log",
+    "violations": []
+  },
+  {
+    "route": "/voice",
+    "violations": []
+  },
+  {
+    "route": "/history",
+    "violations": []
+  },
+  {
+    "route": "/settings",
+    "violations": []
+  },
+  {
+    "route": "/help",
+    "violations": []
+  },
+  {
+    "route": "/pregnancy",
+    "violations": []
+  },
+  {
+    "route": "/baby",
+    "violations": []
+  },
+  {
+    "route": "/growth",
+    "violations": []
+  },
+  {
+    "route": "/fertility",
+    "violations": []
+  },
+  {
+    "route": "/conception",
+    "violations": []
+  },
+  {
+    "route": "/late-period",
+    "violations": []
+  },
+  {
+    "route": "/feedback",
+    "violations": []
+  },
+  {
+    "route": "/lite",
+    "violations": []
+  }
+]

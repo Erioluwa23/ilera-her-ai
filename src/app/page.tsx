@@ -1,9 +1,9 @@
 import AppShell from "@/components/AppShell";
-import Welcome from "@/components/Welcome";
-export default function Home() {
+import StartScreen from "@/components/StartScreen";
+export default function Page() {
   return (
     <AppShell>
-      <Welcome />
+      <StartScreen />
     </AppShell>
   );
 }

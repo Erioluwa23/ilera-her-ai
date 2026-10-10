@@ -5,7 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 type Report = {
   generatedAt: string;
   users: { total: number; last_7_days: number; last_30_days: number };
-  feedback: { total: number; average_rating: string; new_count: number; last_7_days: number };
+  feedback: {
+    total: number;
+    average_rating: string;
+    new_count: number;
+    last_7_days: number;
+  };
   categories: Array<{ category: string; count: number }>;
   recent: Array<{
     id: number;
@@ -34,7 +39,7 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    void load();
+    void Promise.resolve().then(load);
   }, []);
 
   async function updateStatus(id: number, status: string) {
@@ -57,10 +62,26 @@ export default function AdminDashboard() {
   return (
     <div className="adminDashboard">
       <div className="adminStats">
-        <article><span>Total users</span><strong>{report.users.total}</strong><small>+{report.users.last_7_days} in 7 days</small></article>
-        <article><span>Feedback</span><strong>{report.feedback.total}</strong><small>{report.feedback.new_count} new</small></article>
-        <article><span>Average rating</span><strong>{report.feedback.average_rating}/5</strong><small>{report.feedback.last_7_days} responses in 7 days</small></article>
-        <article><span>30-day signups</span><strong>{report.users.last_30_days}</strong><small>registered users</small></article>
+        <article>
+          <span>Total users</span>
+          <strong>{report.users.total}</strong>
+          <small>+{report.users.last_7_days} in 7 days</small>
+        </article>
+        <article>
+          <span>Feedback</span>
+          <strong>{report.feedback.total}</strong>
+          <small>{report.feedback.new_count} new</small>
+        </article>
+        <article>
+          <span>Average rating</span>
+          <strong>{report.feedback.average_rating}/5</strong>
+          <small>{report.feedback.last_7_days} responses in 7 days</small>
+        </article>
+        <article>
+          <span>30-day signups</span>
+          <strong>{report.users.last_30_days}</strong>
+          <small>registered users</small>
+        </article>
       </div>
 
       <section className="adminSection">
@@ -69,16 +90,32 @@ export default function AdminDashboard() {
             <span className="eyebrow">Feedback categories</span>
             <h2>What users are talking about</h2>
           </div>
-          <button className="secondaryBtn" type="button" onClick={() => void load()}>Refresh</button>
+          <button
+            className="secondaryBtn"
+            type="button"
+            onClick={() => void load()}
+          >
+            Refresh
+          </button>
         </div>
         <div className="categoryBars">
-          {report.categories.length === 0 ? <p className="muted">No feedback yet.</p> : report.categories.map((item) => (
-            <div className="categoryBar" key={item.category}>
-              <span>{item.category}</span>
-              <div><i style={{ width: `${Math.max(8, (item.count / maxCategory) * 100)}%` }} /></div>
-              <strong>{item.count}</strong>
-            </div>
-          ))}
+          {report.categories.length === 0 ? (
+            <p className="muted">No feedback yet.</p>
+          ) : (
+            report.categories.map((item) => (
+              <div className="categoryBar" key={item.category}>
+                <span>{item.category}</span>
+                <div>
+                  <i
+                    style={{
+                      width: `${Math.max(8, (item.count / maxCategory) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <strong>{item.count}</strong>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -89,7 +126,12 @@ export default function AdminDashboard() {
           <table className="feedbackTable">
             <thead>
               <tr>
-                <th>Date</th><th>User</th><th>Rating</th><th>Category</th><th>Message</th><th>Status</th>
+                <th>Date</th>
+                <th>User</th>
+                <th>Rating</th>
+                <th>Category</th>
+                <th>Message</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -101,7 +143,12 @@ export default function AdminDashboard() {
                   <td>{item.category}</td>
                   <td>{item.message}</td>
                   <td>
-                    <select value={item.status} onChange={(event) => void updateStatus(item.id, event.target.value)}>
+                    <select
+                      value={item.status}
+                      onChange={(event) =>
+                        void updateStatus(item.id, event.target.value)
+                      }
+                    >
                       <option value="new">New</option>
                       <option value="reviewed">Reviewed</option>
                       <option value="resolved">Resolved</option>
@@ -112,7 +159,9 @@ export default function AdminDashboard() {
             </tbody>
           </table>
         </div>
-        <small className="muted">User phone numbers are masked in the dashboard.</small>
+        <small className="muted">
+          User phone numbers are masked in the dashboard.
+        </small>
       </section>
     </div>
   );

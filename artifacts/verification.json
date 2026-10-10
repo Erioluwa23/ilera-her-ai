@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-10",
+  "baseCommit": "16e4f62",
+  "deploymentPerformed": false,
+  "unitAndContract": {
+    "filesPassed": 29,
+    "testsPassed": 556,
+    "testsFailed": 0
+  },
+  "browser": {
+    "startTime": "2026-10-10T06:37:00.773Z",
+    "duration": 29349.194,
+    "expected": 16,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "build": "passed",
+  "lint": {
+    "errors": 0,
+    "warnings": 1,
+    "warning": "existing unused _args in src/lib/natlas-space.test.ts"
+  },
+  "whitespace": "passed",
+  "axe": {
+    "screens": 16,
+    "violations": 0
+  },
+  "screenshots": 38,
+  "lite": {
+    "measuredAt": "2026-10-10T06:37:14.494Z",
+    "encodedInitialBytes": {
+      "/voice": 173373,
+      "/lite": 162614
+    },
+    "budgetBytes": 350000,
+    "savingsBytes": 10759,
+    "fixture": "local production HTTP, Chromium, cold context; compression differs by host"
+  },
+  "liveServicesVerifiedThisSession": [],
+  "clinicalRelease": "new policy/content gates remain draft",
+  "whoReference": "304 supplied-LMS score cases, 10 normalization cases; complete production pipeline pending"
+}

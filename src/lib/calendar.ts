@@ -1,8 +1,5 @@
-export function validDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const d = new Date(value + "T00:00:00Z");
-  return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
-}
+import { validDate } from "./health/date-only";
+export { validDate } from "./health/date-only";
 export function monthDays(month: string) {
   if (!/^\d{4}-\d{2}$/.test(month) || !validDate(month + "-01"))
     throw new RangeError("Invalid month");

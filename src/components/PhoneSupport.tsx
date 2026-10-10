@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { languageName, type IlaraLanguage } from "@/lib/languages";
+import EnglishContent from "./EnglishContent";
 type Status = {
   ready: boolean;
   phoneNumber: string | null;
@@ -9,60 +10,89 @@ type Status = {
 };
 export default function PhoneSupport() {
   const [status, setStatus] = useState<Status | null>(null),
-    [error, setError] = useState(false);
+    [error, setError] = useState(false),
+    [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/ivr/status", { signal: controller.signal, cache: "no-store" })
+    const c = new AbortController();
+    fetch("/api/ivr/status", { signal: c.signal, cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then(setStatus)
+      .then((x) => {
+        if (typeof x.ready !== "boolean" || !Array.isArray(x.languages))
+          throw new Error();
+        setStatus(x);
+      })
       .catch(() => {
-        if (!controller.signal.aborted) setError(true);
+        if (!c.signal.aborted) setError(true);
       });
-    return () => controller.abort();
-  }, []);
+    return () => c.abort();
+  }, [attempt]);
+  const ready =
+    status?.ready &&
+    !!status.phoneNumber &&
+    /^\+[1-9]\d{7,14}$/.test(status.phoneNumber);
   return (
-    <article className="selectedDay">
-      <span className="pill">
-        {status?.ready
-          ? "Phone calls · Available"
-          : "Phone calls · Setup in progress"}
-      </span>
-      <h2>Call from an ordinary phone</h2>
-      <ol className="ivrSteps">
-        <li>Choose your language using the keypad</li>
-        <li>Agree to recording, then speak after the beep</li>
-        <li>Listen to guidance; replay or ask a follow-up question</li>
-      </ol>
-      {status?.ready && status.phoneNumber ? (
-        <>
-          <a className="btn" href={"tel:" + status.phoneNumber}>
-            Call {status.phoneNumber}
-          </a>
-          <p className="muted">
-            Languages: {status.languages.map(languageName).join(", ")}
-          </p>
-        </>
-      ) : (
-        <p className="muted" role="status">
+    <EnglishContent>
+      <article className="selectedDay">
+        <span className="pill">
+          Phone support ·{" "}
           {error
-            ? "Could not check phone availability. Please try later."
-            : "The call service is being connected. A verified support number will appear here when it is ready."}
-        </p>
-      )}
-      {!!status?.historyLanguages?.length && (
+            ? "Could not check"
+            : !status
+              ? "Checking availability"
+              : ready
+                ? "Ready"
+                : "Not available yet"}
+        </span>
+        <h2>Call from an ordinary phone</h2>
+        <ol>
+          <li>Choose your language using the keypad.</li>
+          <li>Agree to recording, then speak after the beep.</li>
+          <li>Listen to guidance; replay or ask a follow-up.</li>
+        </ol>
+        {ready ? (
+          <>
+            <a className="btn" href={"tel:" + status!.phoneNumber}>
+              Call {status!.phoneNumber}
+            </a>
+            <p>Languages: {status!.languages.map(languageName).join(", ")}</p>
+          </>
+        ) : (
+          <p role="status">
+            {error
+              ? "Could not check phone availability."
+              : status
+                ? "A verified support number will appear when the service is ready."
+                : "Checking availability…"}
+          </p>
+        )}
+        {error && (
+          <button
+            className="secondaryBtn"
+            onClick={() => {
+              setError(false);
+              setStatus(null);
+              setAttempt(attempt + 1);
+            }}
+          >
+            Try again
+          </button>
+        )}
+        {!!status?.historyLanguages?.length && (
+          <p>
+            Optional phone history uses your number and a six-digit PIN for up
+            to 30 days. Press 5 after a reply to delete it. Phone and web
+            histories are separate.
+          </p>
+        )}
         <p className="small muted">
-          Optional saved history recognises your number. Use a six digit keypad
-          PIN to unlock earlier questions and advice for up to 30 days. Press 5
-          after a reply to delete it. You can also call without saved history.
+          Network and international call charges may apply. Phone support is not
+          an emergency service. Source readiness is not evidence of a tested
+          live call.
         </p>
-      )}
-      <p className="small muted">
-        No mobile data needed for a phone call. Network and international call
-        charges may apply. This service does not provide emergency care.
-      </p>
-    </article>
+      </article>
+    </EnglishContent>
   );
 }

@@ -1,25 +1,41 @@
 "use client";
-
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-
+import { useLanguage } from "@/lib/use-language";
+import { copy } from "@/lib/ui-copy";
+import { clearVoiceSessions } from "@/lib/voice-session";
 export default function LogoutButton() {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    { language } = useLanguage();
   async function logout() {
+    if (busy) return;
     setBusy(true);
+    setError("");
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      router.replace("/login");
-      router.refresh();
+      const r = await fetch("/api/auth/logout", { method: "POST" });
+      if (!r.ok) throw new Error();
+      clearVoiceSessions();
+      window.dispatchEvent(new Event("ileraher-session-ended"));
+      window.speechSynthesis?.cancel();
+      location.replace("/login");
+    } catch {
+      setError(
+        "Sign out did not complete. You are still signed in. Try again.",
+      );
+      setBusy(false);
     }
   }
-
   return (
-    <button className="logoutButton" type="button" onClick={logout} disabled={busy}>
-      {busy ? "Signing out…" : "Sign out"}
-    </button>
+    <>
+      <button className="secondaryBtn" onClick={logout} disabled={busy}>
+        {copy(language, "signOut")}
+        {busy ? "…" : ""}
+      </button>
+      {error && (
+        <p role="alert" className="risk urgent">
+          {error}
+        </p>
+      )}
+    </>
   );
 }

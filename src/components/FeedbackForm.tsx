@@ -1,16 +1,20 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import Link from "next/link";
 
 export default function FeedbackForm() {
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState<number | null>(null);
   const [category, setCategory] = useState("general");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const active = useRef(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (active.current) return;
+    active.current = true;
     setBusy(true);
     setStatus("");
     try {
@@ -25,12 +29,13 @@ export default function FeedbackForm() {
         return;
       }
       setMessage("");
-      setRating(5);
+      setRating(null);
       setCategory("general");
       setStatus("Thank you. Your feedback has been saved.");
     } catch {
       setStatus("Could not connect. Please try again.");
     } finally {
+      active.current = false;
       setBusy(false);
     }
   }
@@ -39,24 +44,29 @@ export default function FeedbackForm() {
     <form className="feedbackForm" onSubmit={submit}>
       <fieldset className="feedbackRating">
         <legend>How was your experience?</legend>
-        <div className="ratingButtons" role="radiogroup" aria-label="Experience rating">
+        <div className="ratingButtons">
           {[1, 2, 3, 4, 5].map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={rating === value ? "active" : ""}
-              onClick={() => setRating(value)}
-              aria-pressed={rating === value}
-            >
+            <label className="radioChoice" key={value}>
+              <input
+                type="radio"
+                name="rating"
+                value={value}
+                checked={rating === value}
+                onChange={() => setRating(value)}
+                required
+              />
               {value}★
-            </button>
+            </label>
           ))}
         </div>
       </fieldset>
 
       <label>
         What is your feedback about?
-        <select value={category} onChange={(event) => setCategory(event.target.value)}>
+        <select
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+        >
           <option value="general">General experience</option>
           <option value="voice">Voice assistant</option>
           <option value="cycle">Cycle tracking</option>
@@ -79,12 +89,22 @@ export default function FeedbackForm() {
         />
       </label>
 
-      {status && <p className="statusBox" role="status">{status}</p>}
-      <button className="btn" type="submit" disabled={busy || message.trim().length < 3}>
+      {status && (
+        <p className="statusBox" role="status">
+          {status}
+        </p>
+      )}
+      {status.startsWith("Thank you") && <Link href="/home">Return Home</Link>}
+      <button
+        className="btn"
+        type="submit"
+        disabled={busy || rating === null || message.trim().length < 3}
+      >
         {busy ? "Sending…" : "Send feedback"}
       </button>
       <small className="muted">
-        Please do not include private medical details in feedback. Use the voice assistant for health questions.
+        Please do not include private medical details in feedback. Use the voice
+        assistant for health questions.
       </small>
     </form>
   );
