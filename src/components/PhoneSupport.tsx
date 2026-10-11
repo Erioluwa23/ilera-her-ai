@@ -14,6 +14,7 @@ export default function PhoneSupport() {
         <Icon name="phone" />
         <h2>{t("phone")}</h2>
       </div>
+      <p>{t("phoneDialHint")}</p>
       <span className="ux-badge">{t("phoneDedicatedNumber")}</span>
       <p>
         <strong dir="ltr">{PHONE_SUPPORT_DISPLAY}</strong>
