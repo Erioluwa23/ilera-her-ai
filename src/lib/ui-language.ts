@@ -216,6 +216,24 @@ const rows = {
     "Taimakon waya",
     "Enyemaka ekwentị",
   ],
+  phoneDedicatedNumber: [
+    "Dedicated number",
+    "Nọ́mbà ìpè pàtó",
+    "Lambar kira ta musamman",
+    "Nọmba oku pụrụ iche",
+  ],
+  phoneCall: [
+    "Call ÌleraHer",
+    "Pe ÌleraHer",
+    "Kira ÌleraHer",
+    "Kpọọ ÌleraHer",
+  ],
+  phoneDialHint: [
+    "Tap to call our dedicated number.",
+    "Tẹ láti pe nọ́mbà ìpè pàtó wa.",
+    "Danna don kiran lambarmu ta musamman.",
+    "Pịa ka ịkpọọ nọmba oku anyị pụrụ iche.",
+  ],
   comingSoon: ["Coming soon", "Ó ń bọ̀ láìpẹ́", "Yana tafe", "Ọ na-abịa"],
   verifiedNumber: [
     "A verified number will appear here.",

@@ -1663,6 +1663,11 @@ a {
 .ux-phone-card h2 {
   margin: 0;
 }
+.ux-phone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 .ux-support-list .ux-icon-circle {
   flex: 0 0 44px;
 }

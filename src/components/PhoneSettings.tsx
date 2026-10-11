@@ -1,13 +1,16 @@
 "use client";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useUI } from "@/lib/ui-language";
+import {
+  PHONE_SUPPORT_NUMBER,
+  PHONE_SUPPORT_DISPLAY,
+} from "@/lib/phone-contact";
 import Icon from "./Icon";
 
 type Account = { phone: string; enrolled: boolean; keepReplies: boolean; replies: { id: string; createdAt: string; question: string; answer: string; model: string; urgency: string }[] };
 export default function PhoneSettings() {
   const { t, locale, language } = useUI();
   const [account, setAccount] = useState<Account | null>(null);
-  const [number, setNumber] = useState<string | null>(null);
   const [pin, setPin] = useState(""), [confirm, setConfirm] = useState(""), [password, setPassword] = useState("");
   const [keep, setKeep] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const load = useCallback(async () => {
@@ -17,13 +20,12 @@ export default function PhoneSettings() {
   }, []);
   useEffect(() => {
     let cancelled = false;
-    Promise.all([fetch("/api/phone/account", { cache: "no-store" }), fetch("/api/phone/status", { cache: "no-store" })])
-      .then(async ([a, s]) => {
-        const data = a.ok ? await a.json() as Account : null, status = s.ok ? await s.json() : null;
+    fetch("/api/phone/account", { cache: "no-store" })
+      .then(async (response) => {
+        const data = response.ok ? (await response.json()) as Account : null;
         if (cancelled) return;
         if (data) { setAccount(data); setKeep(data.keepReplies); }
         else setMessage(t("phoneAccountError"));
-        setNumber(status?.ready ? status.phoneNumber : null);
       }).catch(() => { if (!cancelled) setMessage(t("phoneAccountError")); });
     return () => { cancelled = true; };
   }, [language]);
@@ -45,8 +47,18 @@ export default function PhoneSettings() {
   return (
     <section className="ux-help">
       <div className="ux-page-heading"><h1><Icon name="phone" /> {t("phone")}</h1></div>
-      <p>{number ? t("phoneCallHint") : t("phonePilotPending")}</p>
-      {number && <a className="ux-btn" href={"tel:" + number}><Icon name="phone" /> {number}</a>}
+      <p>{t("phoneDialHint")}</p>
+      <p>
+        <strong dir="ltr">{PHONE_SUPPORT_DISPLAY}</strong>
+      </p>
+      <a
+        className="ux-btn"
+        href={"tel:" + PHONE_SUPPORT_NUMBER}
+        aria-label={t("phoneCall") + ": " + PHONE_SUPPORT_DISPLAY}
+      >
+        <Icon name="phone" />
+        {t("phoneCall")}
+      </a>
       {account && <>
         <p className="ux-muted">{t("phoneRegistered")}: {account.phone}</p>
         <form className="authForm" onSubmit={save}>
