@@ -1,3 +1,35 @@
+## 2026-10-12 — direct ZeroGPU quota metadata lookup
+
+The prior quota change only read a countdown from an inference error. Its live
+responses had no retry timestamp, so the requested actual UI retry time remained
+unresolved. Hugging Face's official release/SDK documentation now exposes a
+separate authenticated endpoint, `GET /api/spaces/zero-gpu/quota`, with `current`
+(remaining GPU-seconds), `resetsAt`, and optional execution-count `runs` metadata:
+https://github.com/huggingface/huggingface_hub/pull/5040
+
+The backend now uses the same server credential as Gradio to read that metadata
+when a quota failure has no usable countdown. GPU quota uses its absolute reset;
+a runs limit uses the runs reset. When both are exhausted, the later deadline is
+used. Unrelated Hub rate limits and Space-wide caps do not borrow an account's
+reset. The request is read-only, private/no-store, limited to four seconds and
+does not follow redirects. Only a future validated timestamp leaves the helper;
+no credentials, upstream error text or billing details are exposed to the UI.
+The existing speech/transcription API and four-language WAT notices receive that
+deadline without a frontend contract change.
+
+The endpoint requires billing-read permission: for fine-grained tokens,
+"Billing > Read billing usage and payment method status". Permission or lookup
+failure preserves the existing HTTP 429 and generic retry notice; only the HTTP
+status is logged for operational diagnosis. No credential values or permissions
+were changed.
+
+Local checks: 408 JavaScript tests passed (one existing Python bridge check
+skipped locally), production build/TypeScript passed, and git diff --check passed.
+94 focused tests cover actual metadata propagation through four-language YarnGPT
+failures and queued ASR errors, separate run resets, invalid/past/missing reset
+data, API permissions, credential containment and the original countdown path.
+Deployment and live quota metadata/access verification are pending.
+
 ## 2026-10-12 — provider quota retry time in speech errors
 
 User requested the actual quota renewal time in the error message. The installed

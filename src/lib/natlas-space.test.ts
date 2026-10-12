@@ -3,6 +3,7 @@ import {Client,handle_file,upload_files} from "@gradio/client";
 import {parseAsrResponse,classifyAsrError,transcribeViaNatlasSpace,inspectNatlasSpace,generateViaNatlasSpace,synthesizeViaYarnSpace,verifiedAudioUrl} from "./natlas-space";
 import {NatlasSpeechProvider} from "./natlas";
 import {NATLAS_ASR_MODELS,speechLanguageFromUi,type IlaraLanguage} from "./languages";
+import * as credentials from "./hf-token";
 function wav(){const b=new Uint8Array(48);b.set(new TextEncoder().encode("RIFF"));b.set(new TextEncoder().encode("WAVE"),8);return new Blob([b],{type:"audio/wav"})}
 
 afterEach(()=>{vi.restoreAllMocks();vi.useRealTimers();vi.unstubAllGlobals()});
@@ -106,5 +107,51 @@ describe("answer and speech contracts",()=>{
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(Buffer.from("RIFFtestWAVEaudio"))));
     expect((await synthesizeViaYarnSpace("Hello",language)).toString()).toBe("RIFFtestWAVEaudio");expect(close).toHaveBeenCalled();
     expect(predict).toHaveBeenCalledWith("/synthesize", ["Hello", speechLanguageFromUi(language)]);
+  });
+});
+
+describe("quota metadata reaches speech and transcription errors",()=>{
+  function quotaClient(message:string){
+    const close=vi.fn(),close_stream=vi.fn();
+    vi.spyOn(credentials,"huggingFaceToken").mockReturnValue("hf_test-only");
+    vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-10-12T13:30:00Z"));
+    vi.spyOn(Client,"connect").mockResolvedValue({fetch:vi.fn(),close,
+      predict:vi.fn().mockRejectedValue(new Error(message)),
+      submit:()=>Object.assign((async function*(){yield {type:"status",stage:"error",message}})(),{
+        cancel:vi.fn().mockResolvedValue(undefined),close_stream,
+      }),
+    } as unknown as Client);
+    return {close,close_stream};
+  }
+  it.each(["en-NG","yo","ig","ha"] as const)("adds the account reset to a %s YarnGPT error without a countdown",async language=>{
+    const c=quotaClient("You have exceeded your GPU quota.");
+    const fetcher=vi.fn().mockResolvedValue(Response.json({base:300,current:-12,resetsAt:"2026-10-12T18:12:03Z"}));
+    vi.stubGlobal("fetch",fetcher);
+    await expect(synthesizeViaYarnSpace("Hello",language)).rejects.toMatchObject({
+      code:"ASR_QUOTA",status:429,retryAt:"2026-10-12T18:12:03.000Z",
+    });
+    expect(fetcher).toHaveBeenCalledOnce();expect(c.close).toHaveBeenCalled();
+    expect(Client.connect).toHaveBeenCalledWith("Kolade1/ileraHer-natlas-runtime",expect.objectContaining({token:"hf_test-only"}));
+  });
+  it("carries a runs-limit reset through a queued transcription failure",async()=>{
+    const c=quotaClient("ZeroGPU runs limit reached");
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue(Response.json({base:300,current:200,resetsAt:"2026-10-12T18:12:03Z",
+      runs:{used:20,limit:20,remaining:0,resetsAt:"2026-10-12T20:00:00Z"},
+    })));
+    await expect(transcribeViaNatlasSpace(wav(),"en-NG")).rejects.toMatchObject({code:"ASR_QUOTA",retryAt:"2026-10-12T20:00:00.000Z"});
+    expect(c.close).toHaveBeenCalled();expect(c.close_stream).toHaveBeenCalled();
+  });
+  it("preserves a supplied countdown without another provider request",async()=>{
+    quotaClient("GPU quota exceeded. Try again in 0:01:00.");
+    const fetcher=vi.fn();vi.stubGlobal("fetch",fetcher);
+    await expect(synthesizeViaYarnSpace("Hello","ha")).rejects.toMatchObject({retryAt:"2026-10-12T13:31:00.000Z"});
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("retains the original quota response when billing permission is missing",async()=>{
+    const c=quotaClient("GPU quota exceeded");
+    vi.spyOn(console,"warn").mockImplementation(()=>{});
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response("hf_private-message",{status:403})));
+    await expect(synthesizeViaYarnSpace("Hello","ig")).rejects.toMatchObject({code:"ASR_QUOTA",status:429,retryAt:undefined});
+    expect(c.close).toHaveBeenCalled();expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain("hf_private");
   });
 });

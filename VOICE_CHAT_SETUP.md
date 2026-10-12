@@ -49,7 +49,15 @@ When Hugging Face includes a retry delay in the quota error, the API preserves
 it as an absolute `retryAt` UTC timestamp plus `retryAfterSeconds` and the
 `Retry-After` header. Chat, transcription and cycle-insight error notices display
 the supplied deadline in Nigeria time (WAT), with a date to disambiguate the next
-day. A missing/zero/invalid provider delay never becomes an invented reset time.
+day. If that delay is absent, the backend reads the same authenticated caller's
+reset timestamp from `GET https://huggingface.co/api/spaces/zero-gpu/quota`.
+GPU-time and execution-count limits can reset separately; when both block a call,
+the later reset is used. Unrelated rate limits and Space-wide caps do not use an
+account's daily reset. The lookup is bounded to four seconds and keeps the original
+429 error if unavailable. Fine-grained `HF_TOKEN` credentials need the Hugging Face
+permission **Billing > Read billing usage and payment method status** for this
+read-only endpoint. Missing permissions, null or invalid reset data never become
+an invented time; no token or billing payload is forwarded to the UI.
 
 Cycle insights also use YarnGPT on an explicit Listen action. The interface states
 that listening sends the displayed summary text to the speech service. It does not

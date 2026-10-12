@@ -4,6 +4,7 @@ import {AsrError,validateAudio} from "@/lib/asr-contract";
 import type {SupportedLanguage} from "@/lib/natlas";
 import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
 import {quotaRetryAt} from "@/lib/quota-retry";
+import {quotaLimitFromError,zeroGpuRetryAt} from "@/lib/hf-quota";
 
 const verifiedLanguages=new Set<string>();
 const ILERAHER_ASR_SPACE="Kolade1/ileraHer-natlas-runtime";
@@ -69,7 +70,15 @@ async function withAsrClient<T>(operation:(app:Client,signal:AbortSignal)=>Promi
     app.fetch=(input,init)=>clientFetch(input,{...init,signal:controller.signal});
     return operation(app,controller.signal);
   })();
-  try{return await Promise.race([task,aborted])}catch(error){throw classifyAsrError(error)}finally{
+  try{return await Promise.race([task,aborted])}catch(error){
+    const failure=classifyAsrError(error);
+    const limit=quotaLimitFromError(error);
+    if(failure.code==="ASR_QUOTA"&&!failure.retryAt&&limit){
+      const retryAt=await zeroGpuRetryAt(limit,controller.signal);
+      if(retryAt)throw new AsrError(failure.code,failure.status,failure.message,retryAt);
+    }
+    throw failure;
+  }finally{
     clearTimeout(timer);signal?.removeEventListener("abort",cancel);controller.signal.removeEventListener("abort",onAbort);app?.close();
   }
 }
