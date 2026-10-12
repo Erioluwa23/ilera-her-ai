@@ -22,7 +22,25 @@ legacy saved-error display, recorded/saved audio, offline replay, cancellation,
 speech provenance, quota deadlines and insight listening. Production build and
 TypeScript passed; git diff --check passed. The React best-practices review found
 no added effects, requests or dependencies, and retained the existing accessible
-controls, responsive header and privacy links. Deployment verification is pending.
+controls, responsive header and privacy links.
+
+Verified release: commit `961b348115ebb422fbfe30a9b35f71cbedaded4e`, tree
+`3d698d310df41f3cfc9a85cf6e2459554722fafd`; CI run `38259889576` passed.
+Render deployment `dep-db6egjflot8c739tooeg` is live on the original service,
+finished `2026-10-12T14:03:55.994723Z` (15:03:55 WAT).
+
+The production build's rendered standard/Lite chat HTML contains two/one
+N-ATLaS attributions respectively, with no visible YarnGPT label. Unauthenticated
+production chat requests correctly redirect to sign-in; the published frontend
+chunk `/_next/static/chunks/04ou_uxvevil5.js` returned HTTP 200 and contains the
+new attribution and generic speech notices. The rendered assistant/error checks
+also passed for saved messages. This is component/build/live-asset verification,
+not a claim that an authenticated browser session was visually inspected.
+
+Live health at `2026-10-12T14:12:12Z` returned HTTP 200, with
+`ttsModel=saheedniyi/YarnGPT2b`, `llmModel=NCAIR1/N-ATLaS`, and ASR languages
+`en-NG`, `yo`, `ha`, `ig`. No inference/model/hardware/secret configuration changed.
+This release-evidence follow-up updates documentation only; auto-deploy stays off.
 
 ## 2026-10-12 — direct ZeroGPU quota metadata lookup
 
