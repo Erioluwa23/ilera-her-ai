@@ -165,7 +165,7 @@ export default function CyclePredictionPanel({
               </button>
             )}
           </div>
-          <p className="ux-small">{t("yarnInsightProcessing")}</p>
+          <p className="ux-small">{t("insightSpeechProcessing")}</p>
           {voice.error && (
             <p role="status" className="ux-small">
               {voice.error === "speechQuota" ? quotaNotice(voice.retryAt, t) : t(voice.error)}

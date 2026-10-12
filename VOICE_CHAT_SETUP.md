@@ -40,6 +40,13 @@ The runtime selects these speakers:
 | Igbo | ig | igbo_female2 |
 | Hausa | ha | hausa_female2 |
 
+The chat header, assistant cards and footer display **Powered by N-ATLaS** to
+attribute the product's N-ATLaS ASR/LLM integration. Generated phone replies use
+the same attribution; curated phone replies retain their reviewed-guidance label.
+Speech notices use model-neutral wording, including older saved error messages.
+YarnGPT remains the TTS engine, and audio model IDs, verification, WAV storage
+and playback keep their actual YarnGPT provenance.
+
 There is no browser/device speech synthesis or alternate `VOICE_TTS_*` provider
 override. Quota failures return HTTP 429 and a translated retry notice; other
 speech failures preserve the text reply. Never replace an unavailable YarnGPT

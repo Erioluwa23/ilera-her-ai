@@ -253,7 +253,7 @@ describe("YarnGPT is the chat speaker", () => {
     vi.mocked(fetch).mockResolvedValue(audioResponse(language));
     await mount();
     expect(fetch).not.toHaveBeenCalled();
-    expect(host.textContent).toContain("YarnGPT voice");
+    expect(host.textContent).toContain("Powered by N-ATLaS");
     expect(host.textContent).not.toContain("Device voice");
     await click("Listen to reply");
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -272,11 +272,14 @@ describe("YarnGPT is the chat speaker", () => {
   });
   it("keeps the reply when quota is exhausted and never calls device speech", async () => {
     const speak = vi.fn(); vi.stubGlobal("speechSynthesis", { speak });
-    mocks.load.mockResolvedValue([assistant("yo")]);
+    mocks.load.mockResolvedValue([{ ...assistant("yo"), error: "YarnGPT's speech limit has been reached. Please try again later." }]);
     vi.mocked(fetch).mockResolvedValue(new Response("quota", { status: 429 }));
-    await mount(); await click("Listen to reply");
+    await mount();
+    expect(host.textContent).toContain("Speech quota exhausted. Please try again later.");
+    expect(host.textContent).not.toContain("YarnGPT");
+    await click("Listen to reply");
     expect(host.textContent).toContain("Synthetic reply");
-    expect(host.textContent).toContain("YarnGPT's speech limit has been reached");
+    expect(host.textContent).toContain("Speech quota exhausted. Please try again later.");
     expect(mocks.save.mock.calls.at(-1)?.[0].audio).toBeUndefined();
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
     expect(speak).not.toHaveBeenCalled();

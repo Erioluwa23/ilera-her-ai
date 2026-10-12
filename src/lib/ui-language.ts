@@ -12,23 +12,23 @@ const rows = {
     "Saurari amsa",
     "Gee nzaghachi",
   ],
-  yarnVoice: [
-    "YarnGPT voice",
-    "Ohùn YarnGPT",
-    "Muryar YarnGPT",
-    "Olu YarnGPT",
+  poweredByNatlas: [
+    "Powered by N-ATLaS",
+    "Powered by N-ATLaS",
+    "Powered by N-ATLaS",
+    "Powered by N-ATLaS",
   ],
   voiceUnavailable: [
-    "YarnGPT audio is unavailable. Read the reply or try again later.",
-    "Ohùn YarnGPT kò wà. Ka ìdáhùn tàbí tún gbìyànjú nígbà míì.",
-    "Sautin YarnGPT ba ya samuwa. Karanta amsa ko sake gwadawa daga baya.",
-    "Olu YarnGPT adịghị. Gụọ nzaghachi ma ọ bụ gbalịa ọzọ ma emechaa.",
+    "Audio is unavailable. Read the reply or try again later.",
+    "Ohùn kò wà. Ka ìdáhùn tàbí tún gbìyànjú nígbà míì.",
+    "Sauti ba ya samuwa. Karanta amsa ko sake gwadawa daga baya.",
+    "Olu adịghị. Gụọ nzaghachi ma ọ bụ gbalịa ọzọ ma emechaa.",
   ],
   speechQuota: [
-    "YarnGPT's speech limit has been reached. Please try again later.",
-    "Ààlà iṣẹ́ ohùn YarnGPT ti pé. Jọ̀wọ́ tún gbìyànjú nígbà míì.",
-    "An kai iyakar amfani da muryar YarnGPT. A sake gwadawa daga baya.",
-    "Eruola oke iji olu YarnGPT. Biko gbalịa ọzọ ma emechaa.",
+    "Speech quota exhausted. Please try again later.",
+    "Ààlà iṣẹ́ ohùn ti pé. Jọ̀wọ́ tún gbìyànjú nígbà míì.",
+    "An kai iyakar amfani da murya. A sake gwadawa daga baya.",
+    "Eruola oke iji olu. Biko gbalịa ọzọ ma emechaa.",
   ],
   quotaRetryAt: [
     "Quota exhausted. Try again at {time}.",
@@ -48,11 +48,11 @@ const rows = {
     "Sake taɓa kunna sauti, ko sauke sautin.",
     "Pịa kpọọ ọzọ, ma ọ bụ budata olu ahụ.",
   ],
-  yarnInsightProcessing: [
-    "YarnGPT voice · Listen sends this insight text to the speech service.",
-    "Ohùn YarnGPT · Gbọ́ fi ọ̀rọ̀ àlàyé yìí ránṣẹ́ sí iṣẹ́ ohùn.",
-    "Muryar YarnGPT · Saurara yana aika wannan rubutu ga sabis na murya.",
-    "Olu YarnGPT · Ige ntị na-eziga ederede a na ọrụ olu.",
+  insightSpeechProcessing: [
+    "Listen sends this insight text to the speech service.",
+    "Gbọ́ fi ọ̀rọ̀ àlàyé yìí ránṣẹ́ sí iṣẹ́ ohùn.",
+    "Saurara yana aika wannan rubutu ga sabis na murya.",
+    "Ige ntị na-eziga ederede a na ọrụ olu.",
   ],
   cycle: ["Cycle", "Òṣù", "Zagaye", "Oge nsọ"],
   chat: ["Chat", "Ìjíròrò", "Tattaunawa", "Mkparịta ụka"],
@@ -908,6 +908,22 @@ const rows = {
   ],
 } as const;
 export type UIKey = keyof typeof rows;
+// Older message errors were saved as translated text. Display their current
+// wording while retaining the original conversation and technical provenance.
+const legacySpeechNotices = new Map<string, "speechQuota" | "voiceUnavailable">([
+  ["YarnGPT's speech limit has been reached. Please try again later.", "speechQuota"],
+  ["Ààlà iṣẹ́ ohùn YarnGPT ti pé. Jọ̀wọ́ tún gbìyànjú nígbà míì.", "speechQuota"],
+  ["An kai iyakar amfani da muryar YarnGPT. A sake gwadawa daga baya.", "speechQuota"],
+  ["Eruola oke iji olu YarnGPT. Biko gbalịa ọzọ ma emechaa.", "speechQuota"],
+  ["YarnGPT audio is unavailable. Read the reply or try again later.", "voiceUnavailable"],
+  ["Ohùn YarnGPT kò wà. Ka ìdáhùn tàbí tún gbìyànjú nígbà míì.", "voiceUnavailable"],
+  ["Sautin YarnGPT ba ya samuwa. Karanta amsa ko sake gwadawa daga baya.", "voiceUnavailable"],
+  ["Olu YarnGPT adịghị. Gụọ nzaghachi ma ọ bụ gbalịa ọzọ ma emechaa.", "voiceUnavailable"],
+]);
+export function speechNotice(message: string, t: (key: UIKey) => string) {
+  const key = legacySpeechNotices.get(message);
+  return key ? t(key) : message;
+}
 export function quotaNotice(retryAt: unknown, t: (key: UIKey) => string, fallback: "speechQuota" | "asrQuota" = "speechQuota") {
   const retry = validRetryAt(retryAt);
   return retry ? t("quotaRetryAt").replace("{time}", formatQuotaTime(retry)) : t(fallback);

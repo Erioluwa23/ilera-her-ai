@@ -456,7 +456,7 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
         <Flower size={38} />
         <div className="ux-chat-title">
           <strong>ÌleraHer</strong>
-          <small>{compact ? t("lowData") : t("aiGuide")}</small>
+          <small>{compact ? t("lowData") : t("poweredByNatlas")}</small>
         </div>
         <label className="ux-chat-language">
           <span className="sr-only">{t("chooseLanguage")}</span>
@@ -683,7 +683,7 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
           </p>
         )}
         <p className="ux-chat-notice">
-          {t("aiGuide")} · <Link href="/settings/privacy">{t("privacy")}</Link>
+          {t("poweredByNatlas")} · <Link href="/settings/privacy">{t("privacy")}</Link>
         </p>
       </div>
       {disclosure && (

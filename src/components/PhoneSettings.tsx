@@ -73,7 +73,7 @@ export default function PhoneSettings() {
         <p className="ux-muted">{t("phonePinChangeHint")}</p>
         <div className="ux-page-heading"><h2>{t("phoneReplies")}</h2></div>
         {account.replies.length === 0 ? <p className="ux-muted">{t("phoneNoReplies")}</p> : account.replies.map(reply => <article className="ux-phone-card" key={reply.id}>
-          <small>{new Date(reply.createdAt).toLocaleString(locale)} · {reply.model === "curated" ? t("phoneReviewed") : "N-ATLAS"}</small>
+          <small>{new Date(reply.createdAt).toLocaleString(locale)} · {reply.model === "curated" ? t("phoneReviewed") : t("poweredByNatlas")}</small>
           <p><strong>{reply.question}</strong></p><p>{reply.answer}</p>
         </article>)}
       </>}

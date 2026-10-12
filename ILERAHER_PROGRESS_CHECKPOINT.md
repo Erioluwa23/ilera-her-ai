@@ -1,3 +1,29 @@
+## 2026-10-12 — N-ATLaS product attribution
+
+User requested visible N-ATLaS branding to communicate challenge alignment while
+retaining YarnGPT's existing speech function. Chat headers, assistant cards and
+footers now display **Powered by N-ATLaS**. Generated phone replies use the same
+attribution; curated phone replies retain their reviewed-guidance label.
+
+Voice-unavailable and unknown-quota notices no longer name YarnGPT. Cycle insight
+listening retains its speech-processing disclosure with generic wording. Exact
+legacy speech-error strings in all four interface languages are mapped to current
+wording at render time, so previously saved conversations also display the new
+notices. Saved records, clinical text, recordings and technical model IDs are not
+rewritten. Provider-supplied retry times and WAT formatting remain intact.
+
+YarnGPT still performs TTS for English, Yoruba, Igbo and Hausa. Runtime inference,
+speaker routing, `saheedniyi/YarnGPT2b` provenance, model/language header validation,
+audio caching and playback remain unchanged. The API's generic unavailable error
+text changes, while its status/code and all quota metadata contracts are retained.
+
+61 focused checks passed, covering the existing four-language listening flow,
+legacy saved-error display, recorded/saved audio, offline replay, cancellation,
+speech provenance, quota deadlines and insight listening. Production build and
+TypeScript passed; git diff --check passed. The React best-practices review found
+no added effects, requests or dependencies, and retained the existing accessible
+controls, responsive header and privacy links. Deployment verification is pending.
+
 ## 2026-10-12 — direct ZeroGPU quota metadata lookup
 
 The prior quota change only read a countdown from an inference error. Its live

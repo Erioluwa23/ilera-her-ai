@@ -34,6 +34,6 @@ export async function POST(req: Request) {
     return new Response(new Uint8Array(speech.audio), { headers: { "content-type": speech.contentType, "cache-control": "private, no-store", "x-speech-model": speech.model, "x-speech-language": language } });
   } catch (error) {
     if (error instanceof AsrError && error.code === "ASR_QUOTA") return quotaResponse("TTS_QUOTA", error.retryAt);
-    return Response.json({ error: "YarnGPT audio is unavailable. Read the reply or try again later.", code: "TTS_UNAVAILABLE" }, { status: 502 });
+    return Response.json({ error: "Audio is unavailable. Read the reply or try again later.", code: "TTS_UNAVAILABLE" }, { status: 502 });
   }
 }

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { YARN_TTS_MODEL } from "@/lib/yarn-audio";
 import { useOnline } from "@/lib/ui-utils";
 import type { VoiceMessage } from "@/lib/voice-chat";
-import { useUI } from "@/lib/ui-language";
+import { speechNotice, useUI } from "@/lib/ui-language";
 import { LANGUAGE_OPTIONS } from "@/lib/languages";
 import AudioPlayer from "./AudioPlayer";
 import Icon from "./Icon";
@@ -97,7 +97,7 @@ export default function VoiceMessageCard({
         onRequestAudio={message.role === "assistant" ? onSaveAudio : undefined}
         disabled={busy || (!audio && !online)}
       />}
-      {message.role === "assistant" && <small>{t("yarnVoice")}</small>}
+      {message.role === "assistant" && <small>{t("poweredByNatlas")}</small>}
       {message.text && (message.role === "assistant" || !message.audio) ? (
         <>
           <p>{message.text}</p>
@@ -131,7 +131,7 @@ export default function VoiceMessageCard({
       )}
       {message.error && (
         <p role="status" className="ux-alert">
-          {message.error}
+          {speechNotice(message.error, t)}
         </p>
       )}
       <div className="ux-message-actions">
