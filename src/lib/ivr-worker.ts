@@ -4,6 +4,8 @@ import { answerQuestion, evidenceFor, localizeHealthAnswer } from "./knowledge";
 import { callerHistory } from "./ivr-profiles";
 import { claim, finish, getJob, type JobResult } from "./ivr-jobs";
 import type { CallState } from "./ivr";
+import { replyAudio } from "./reply-audio";
+import { YARN_TTS_MODEL } from "./yarn-audio";
 async function boundedAudio(response: Response, max: number) {
   if (!response.ok || !response.body) throw new Error("Audio unavailable");
   const reader = response.body.getReader(),
@@ -24,22 +26,6 @@ async function boundedAudio(response: Response, max: number) {
     reader.releaseLock();
   }
   return Buffer.concat(chunks);
-}
-async function timed<T>(promise: Promise<T>) {
-  let timer: ReturnType<typeof setTimeout>;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error("Generation timeout")),
-          15000,
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer!);
-  }
 }
 export async function runJob(state: CallState) {
   const lease = await claim(state);
@@ -98,8 +84,7 @@ export async function runJob(state: CallState) {
       generated =
         grounded.urgency === "urgent"
           ? null
-          : await timed(
-              new NatlasLLMProvider().answer(
+          : await new NatlasLLMProvider().answer(
                 transcript.text,
                 {
                   ...evidenceFor(grounded),
@@ -110,8 +95,8 @@ export async function runJob(state: CallState) {
                   ),
                 },
                 state.language,
-              ),
-            );
+                AbortSignal.timeout(15000),
+              );
     } catch {
       /* Preserve reviewed guidance when generation is unavailable. */
     }
@@ -120,34 +105,23 @@ export async function runJob(state: CallState) {
         [localized.answer, ...localized.nextSteps].join(" ")) +
       " " +
       localized.disclaimer;
+    // Every language, including English, uses the same verified YarnGPT runtime
+    // as web voice replies. No provider Say or alternate TTS endpoint is used.
+    const speech = await replyAudio(text, state.language, AbortSignal.timeout(90000));
+    if (speech.model !== YARN_TTS_MODEL || speech.contentType !== "audio/wav" ||
+        speech.audio.length < 44 || speech.audio.length > 4 * 1024 * 1024 ||
+        speech.audio.toString("ascii", 0, 4) !== "RIFF" ||
+        speech.audio.toString("ascii", 8, 12) !== "WAVE")
+      throw new Error("Verified telephone speech is unavailable");
     const result: JobResult = {
       text,
       question: transcript.text,
       reported: [...reported, transcript.text].slice(-4),
+      audio: speech.audio.toString("base64"),
+      contentType: speech.contentType,
+      speechModel: speech.model,
+      language: state.language,
     };
-    if (state.language !== "en-NG") {
-      const url = new URL(process.env.IVR_TTS_API_URL || "");
-      if (url.protocol !== "https:") throw new Error("TTS not configured");
-      const tts = await fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(process.env.IVR_TTS_API_KEY
-            ? { Authorization: "Bearer " + process.env.IVR_TTS_API_KEY }
-            : {}),
-        },
-        body: JSON.stringify({ text, language: state.language }),
-        redirect: "error",
-        signal: AbortSignal.timeout(15000),
-      });
-      const type = (tts.headers.get("content-type") || "").split(";")[0];
-      if (!["audio/mpeg", "audio/wav", "audio/x-wav"].includes(type))
-        throw new Error("Invalid speech audio");
-      result.audio = (await boundedAudio(tts, 4 * 1024 * 1024)).toString(
-        "base64",
-      );
-      result.contentType = type;
-    }
     await finish(state, lease.lease, result);
   } catch {
     await finish(state, lease.lease, null);

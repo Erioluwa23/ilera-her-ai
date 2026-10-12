@@ -4,9 +4,13 @@ const mocks = vi.hoisted(() => ({
   runtime: vi.fn(),
   numbers: vi.fn(),
   account: vi.fn(),
+  prompts: vi.fn(),
 }));
 vi.mock("@/lib/ivr-jobs", () => ({ databaseReady: mocks.database }));
 vi.mock("@/lib/natlas-space", () => ({ inspectNatlasSpace: mocks.runtime }));
+vi.mock("@/lib/ivr-prompts", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/ivr-prompts")>(), inspectIvrPrompts: mocks.prompts,
+}));
 vi.mock("twilio", () => ({
   default: () => ({
     incomingPhoneNumbers: { list: mocks.numbers },
@@ -19,6 +23,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   for (const [key, value] of Object.entries({
     IVR_ENABLED: "true",
+    IVR_PHONE_VERIFIED: "true",
+    IVR_PROMPT_BASE_URL: "https://audio.example.test/ivr/",
     TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32),
     TWILIO_AUTH_TOKEN: "auth",
     IVR_PHONE_NUMBER: "+2348012345678",
@@ -34,7 +40,9 @@ beforeEach(() => {
     gatedModelsAccessible: true,
     modelsLoaded: true,
     llmLoaded: true,
+    ttsLoaded: true,
   });
+  mocks.prompts.mockResolvedValue(true);
   mocks.numbers.mockResolvedValue([
     {
       phoneNumber: "+2348012345678",
@@ -78,11 +86,37 @@ describe("phone availability", () => {
     expect(data.phoneNumber).toBeNull();
     expect(data.checks.llmReady).toBe(false);
   });
+  it("keeps a setup-complete number private until ordinary phone calls are verified", async () => {
+    vi.stubEnv("IVR_PHONE_VERIFIED", "false");
+    const data = await (await GET()).json();
+    expect(data.setupReady).toBe(true);
+    expect(data.ready).toBe(false);
+    expect(data.phoneNumber).toBeNull();
+    expect(data.checks.acceptanceVerified).toBe(false);
+  });
+  it("requires YarnGPT to be loaded before advertising telephone calling", async () => {
+    mocks.runtime.mockResolvedValue({ reachable: true, gatedModelsAccessible: true, modelsLoaded: true, llmLoaded: true, ttsLoaded: false });
+    const data = await (await GET()).json();
+    expect(data.checks.ttsReady).toBe(false);
+    expect(data.ready).toBe(false);
+    expect(data.phoneNumber).toBeNull();
+  });
+  it("requires playable multilingual consent and menu recordings", async () => {
+    mocks.prompts.mockResolvedValue(false);
+    const data = await (await GET()).json();
+    expect(data.checks.promptsReady).toBe(false);
+    expect(data.ready).toBe(false);
+    expect(data.phoneNumber).toBeNull();
+  });
   it("publishes only after provider, database and default models are available", async () => {
     const data = await (await GET()).json();
     expect(data.ready).toBe(true);
     expect(data.setupReady).toBe(true);
     expect(data.phoneNumber).toBe("+2348012345678");
+    expect(data.transport).toBe("telephone");
+    expect(data.callerInternetRequired).toBe(false);
+    expect(data.appAccountRequired).toBe(false);
+    expect(data.languages).toEqual(["en-NG", "yo", "ha", "ig"]);
   });
   it("keeps a wrongly configured number unpublished", async () => {
     mocks.numbers.mockResolvedValue([

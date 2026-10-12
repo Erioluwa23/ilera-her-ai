@@ -9,6 +9,7 @@ import {
 } from "node:crypto";
 import twilio from "twilio";
 import type { IlaraLanguage } from "./languages";
+import { ivrPromptBase } from "./ivr-prompts";
 export function xmlEscape(input: string) {
   return input.replace(
     /[<>&'\"]/g,
@@ -208,13 +209,8 @@ export function say(text: string) {
   return `<Say language="en-GB">${xmlEscape(text)}</Say>`;
 }
 export function configuredLanguages(): IlaraLanguage[] {
-  const all: IlaraLanguage[] = ["en-NG"];
-  if (process.env.IVR_PROMPT_BASE_URL && process.env.IVR_TTS_API_URL) {
-    for (const value of (process.env.IVR_TTS_LANGUAGES || "").split(",")) {
-      if (value === "yo" || value === "ha" || value === "ig") all.push(value);
-    }
-  }
-  return [...new Set(all)];
+  const values = (process.env.IVR_LANGUAGES ?? "en-NG,yo,ha,ig").split(",").map((v) => v.trim());
+  return [...new Set(values.filter((v): v is IlaraLanguage => Object.values(DIGIT_LANGUAGE).includes(v as IlaraLanguage)))];
 }
 export function configuration() {
   const checks = {
@@ -226,22 +222,32 @@ export function configuration() {
     secret: (process.env.IVR_SESSION_SECRET?.length || 0) >= 32,
     database: !!(process.env.IVR_DATABASE_URL || process.env.DATABASE_URL),
     llm: true, // The shared N-ATLaS runtime is the default provider.
+    prompts: false,
+    acceptanceVerified: process.env.IVR_PHONE_VERIFIED === "true",
   };
   try {
     publicOrigin();
     checks.origin = true;
   } catch {}
+  try { ivrPromptBase(); checks.prompts = true; } catch {}
   return {
     checks,
-    configured: Object.values(checks).every(Boolean),
+    // An operator can enable controlled test calls before verifying the number
+    // for publication. Readiness keeps it private until real calls pass.
+    configured: Object.entries(checks).every(([key, value]) => key === "acceptanceVerified" || value),
     languages: configuredLanguages(),
   };
 }
 export function prompt(language: IlaraLanguage, name: string, english: string) {
-  if (language === "en-NG") return say(english);
-  const base = new URL(process.env.IVR_PROMPT_BASE_URL || "");
-  if (base.protocol !== "https:") throw new Error("Invalid audio prompts");
-  return `<Play>${xmlEscape(new URL(`${language}/${name}.mp3`, base.href.replace(/\/?$/, "/")).href)}</Play>`;
+  // Generic English setup failures remain intelligible before a prompt pack is
+  // installed. Active-call menus and every health reply play YarnGPT recordings.
+  let base: URL;
+  try { base = ivrPromptBase(); } catch (error) {
+    if (language === "en-NG") return say(english);
+    throw error;
+  }
+  if (!/^[a-z-]+$/.test(name)) throw new Error("Invalid audio prompt name");
+  return `<Play>${xmlEscape(new URL(`${language}/${name}.wav`, base).href)}</Play>`;
 }
 export function failWebhook() {
   return new Response("Forbidden", {

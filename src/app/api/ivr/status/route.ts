@@ -3,11 +3,13 @@ import twilio from "twilio";
 import { configuration } from "@/lib/ivr";
 import { databaseReady } from "@/lib/ivr-jobs";
 import { inspectNatlasSpace } from "@/lib/natlas-space";
+import { inspectIvrPrompts } from "@/lib/ivr-prompts";
 export async function GET() {
   const config = configuration();
   let database = false,
     asr = false,
     llm = false,
+    tts = false,
     providerVerified = false,
     publicCallingAllowed = false,
     numberOwned = false,
@@ -36,6 +38,7 @@ export async function GET() {
           limit: 1,
         })
       : Promise.resolve(null),
+    inspectIvrPrompts(config.languages, config.languages.filter(historyEnabled)),
   ]);
   database = result[0].status === "fulfilled" && result[0].value === true;
   if (result[1].status === "fulfilled" && result[1].value) {
@@ -49,6 +52,7 @@ export async function GET() {
       runtime.gatedModelsAccessible === true &&
       "modelsLoaded" in runtime &&
       runtime.modelsLoaded === true;
+    tts = runtime.reachable === true && "ttsLoaded" in runtime && runtime.ttsLoaded === true;
   }
   if (result[2].status === "fulfilled" && result[2].value) {
     const account = result[2].value;
@@ -72,15 +76,19 @@ export async function GET() {
       number.voiceMethod === "POST";
   }
   const numberVerified = numberOwned && webhookConfigured;
+  const promptsReady = result[4].status === "fulfilled" && result[4].value === true;
   const setupReady =
-    Object.entries(config.checks).every(([key, value]) => key === "enabled" || value) &&
-    database && asr && llm && publicCallingAllowed && numberVerified;
-  const ready = config.checks.enabled && setupReady;
+    Object.entries(config.checks).every(([key, value]) => key === "enabled" || key === "acceptanceVerified" || value) &&
+    config.languages.length > 0 && database && asr && llm && tts && promptsReady && publicCallingAllowed && numberVerified;
+  const ready = config.checks.enabled && config.checks.acceptanceVerified && setupReady;
   return Response.json(
     {
       ready,
       setupReady,
       accountType,
+      transport: "telephone",
+      callerInternetRequired: false,
+      appAccountRequired: false,
       checks: {
         ...config.checks,
         databaseReachable: database,
@@ -91,6 +99,8 @@ export async function GET() {
         numberVerified,
         asrReachable: asr,
         llmReady: llm,
+        ttsReady: tts,
+        promptsReady,
       },
       languages: config.languages,
       historyLanguages: config.languages.filter(historyEnabled),

@@ -1,3 +1,19 @@
+## 2026-10-12 — ordinary telephone calling
+
+User clarified that access from a basic phone without internet is a major goal.
+The Twilio ordinary-phone IVR now uses verified YarnGPT2b audio for all four
+reply languages; English provider speech and alternate native TTS were removed
+from the health-reply path. Prerecorded consent/keypad controls, playable-pack
+readiness and a real-call publication gate were added. Guest calling needs no
+app account or PIN; history remains an optional telephone-keypad feature.
+
+The ordinary call number is not activated. The live service lacks carrier
+credentials/owned number, the original SIM is not cloud-connected, and the
+actual menu-audio preparation attempt was quota-blocked until 17:33:28 WAT.
+469 JavaScript tests, production build, TypeScript and targeted lint passed.
+See ILERAHER_IVR_CHECKPOINT.md and IVR_SETUP.md for release/activation details.
+Do not claim that the in-app call or deployment satisfies an actual carrier call.
+
 ## 2026-10-12 — free in-app calling
 
 User authorized a free calling experience that receives spoken replies and asked

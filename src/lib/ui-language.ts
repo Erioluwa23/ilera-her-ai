@@ -249,6 +249,24 @@ const rows = {
     "Kira ÌleraHer AI",
     "Kpọọ ÌleraHer AI",
   ],
+  ordinaryCall: [
+    "Telephone call",
+    "Ìpè tẹlifóònù",
+    "Kiran waya",
+    "Oku ekwentị",
+  ],
+  ordinaryCallPending: [
+    "Calls from basic phones are being connected. The agent's telephone number will appear here when it is ready.",
+    "A ń so ìpè láti fóònù rọrùn pọ̀. Nọ́mbà tẹlifóònù olùrànlọ́wọ́ yóò hàn níbí nígbà tí ó bá ṣetán.",
+    "Ana haɗa kira daga wayoyin yau da kullum. Lambar wayar wakilin za ta bayyana nan idan ta shirya.",
+    "A na-ejikọta oku sitere n'ekwentị nkịtị. Nọmba ekwentị onye enyemaka ga-apụta ebe a mgbe ọ dị njikere.",
+  ],
+  ordinaryCallCharges: [
+    "Your network's normal call charges may apply.",
+    "Owó ìpè déédéé ti nẹ́tíwọ́ọ̀kì rẹ lè wà.",
+    "Ana iya cajin kuɗin kira na kamfanin sadarwarki.",
+    "Ụgwọ oku netwọk gị nwere ike ịdị.",
+  ],
   phoneDedicatedNumber: [
     "Dedicated number",
     "Nọ́mbà ìpè pàtó",

@@ -26,6 +26,7 @@ export async function GET() {
         storageReady: await cycleReady,
       },
       channels: { web: true, lowBandwidth: "/lite", ivr: "/api/ivr/incoming",
+        telephoneCall: { status: "/api/ivr/status", transport: "telephone", callerInternetRequired: false, appAccountRequired: false },
         voiceCall: { path: "/call", transport: "browser-audio", internetRequired: true } },
       natlas: {
         huggingFaceTokenConfigured: Boolean(huggingFaceToken()),

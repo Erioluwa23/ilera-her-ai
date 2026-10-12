@@ -1,8 +1,8 @@
 import {
   configuration,
   failWebhook,
+  prompt,
   route,
-  say,
   twiml,
   webhook,
 } from "@/lib/ivr";
@@ -14,9 +14,7 @@ export async function POST(req: Request) {
   }
   if (!configuration().configured)
     return twiml(
-      say(
-        "IleraHer phone support is not available yet. Please try again later.",
-      ) + "<Hangup/>",
+      prompt("en-NG", "unavailable", "IleraHer phone support is not available yet. Please try again later.") + "<Hangup/>",
     );
   const attempt = Math.min(
     3,
@@ -24,9 +22,9 @@ export async function POST(req: Request) {
   );
   if (attempt >= 3)
     return twiml(
-      say("We did not receive a valid choice. Goodbye.") + "<Hangup/>",
+      prompt("en-NG", "menu-retries", "We did not receive a valid choice. Goodbye.") + "<Hangup/>",
     );
   return twiml(
-    `<Gather input="dtmf" numDigits="1" action="${route("record", undefined, { phase: "language", attempt: String(attempt + 1) })}" method="POST" timeout="8">${say("Welcome to IleraHer. For Nigerian English, press 1. For Yoruba, press 2. For Hausa, press 3. For Igbo, press 4.")}</Gather><Redirect method="POST">${route("incoming", undefined, { attempt: String(attempt + 1) })}</Redirect>`,
+    `<Gather input="dtmf" numDigits="1" action="${route("record", undefined, { phase: "language", attempt: String(attempt + 1) })}" method="POST" timeout="8">${prompt("en-NG", "welcome", "Welcome to IleraHer. For English, press 1. For Yoruba, press 2. For Hausa, press 3. For Igbo, press 4.")}</Gather><Redirect method="POST">${route("incoming", undefined, { attempt: String(attempt + 1) })}</Redirect>`,
   );
 }

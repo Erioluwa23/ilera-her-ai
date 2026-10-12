@@ -10,7 +10,7 @@ Twilio.org's Impact Access programme offers eligible organisations a one-time $1
 
 Apply from the Twilio account that will own the number: **Billing Overview → Nonprofit Benefits → Sign Up**, or the homepage **Get $100 credit** card when present. Select the actual country and entity type, provide the organisation's legal details and complete the requested verification. Then follow the approved programme's upgrade instructions. Do not substitute the ordinary payment-funded upgrade flow if it requests a payment the owner cannot make.
 
-Official references, checked 10 October 2026:
+Official references, rechecked 12 October 2026:
 
 - [Programme and benefits](https://www.twilio.org/en-us/support-and-resources/impact-access-program)
 - [Application instructions](https://help.twilio.com/articles/8813254760603-Apply-for-the-Twilio-org-Impact-Access-Program)
@@ -20,7 +20,7 @@ Official references, checked 10 October 2026:
 
 ## Product description for the application
 
-ÌleraHer AI is a voice-first health-information application for Nigerian communities. We are preparing an ordinary-phone pilot so people can access spoken guidance without a smartphone or mobile data. Callers will dial a dedicated number, consent to processing, speak their question and hear a response. The implemented journey includes replay, follow-up questions and optional caller history protected by a keypad PIN. Speech recognition and answer generation integrate official N-ATLaS models. English playback is built in; Nigerian-language playback will be enabled after its audio prompts and speech service are tested. The service provides health information and care guidance, and does not replace clinical care.
+ÌleraHer AI is a voice-first health-information application for Nigerian communities. We are preparing an ordinary-phone pilot so people can access spoken guidance without a smartphone or mobile data. Callers will dial a dedicated number, consent to processing, speak their question and hear a response without an app account. The implemented journey includes replay, follow-up questions and optional caller history protected by a keypad PIN. Speech recognition and answer generation integrate official N-ATLaS models. Verified YarnGPT2b audio is wired for English, Yoruba, Hausa and Igbo. Prepared control recordings and real basic-phone acceptance calls are required before publication. The service provides health information and care guidance, and does not replace clinical care.
 
 - Product: https://ilera-her-ai.onrender.com
 - Source: https://github.com/Erioluwa23/ilera-her-ai
@@ -34,7 +34,7 @@ This is an application brief, not a submitted application. No eligibility docume
 1. Confirm credits and an account upgrade removing trial calling restrictions. Check number availability and caller charges, including whether Nigerian callers can reach the selected number. Do not label an international number as a Nigerian or toll-free line.
 2. Provision an owned voice-capable number only within the owner's approved credit budget. Set `IVR_PHONE_NUMBER` to that exact number and save the owning account's credentials in Render.
 3. Set its incoming voice webhook to **POST https://ilera-her-ai.onrender.com/api/ivr/incoming**, or run the existing configuration script with secrets supplied securely.
-4. Resolve the N-ATLaS text-model access requirement for the Hugging Face runtime token. Verify database, ASR and text-model readiness at `/api/ivr/status` while calls remain disabled.
-5. Follow [activation and acceptance checks](../IVR_SETUP.md) and [the implemented caller journey](IVR_CALLS.md). Enable calls for testing, verify replay, follow-ups and PIN-protected continuity on real calls, then publish the number.
+4. Verify database, ASR, text-model and YarnGPT readiness at `/api/ivr/status` while calls remain disabled. Prepare, deploy and review the prerecorded control pack described in [IVR setup](../IVR_SETUP.md). Gated N-ATLaS access and loaded ASR/LLM were confirmed on 12 October; available inference quota still needs a real test.
+5. Follow [activation and acceptance checks](../IVR_SETUP.md) and [the implemented caller journey](IVR_CALLS.md). Enable calls for testing, verify replay, follow-ups and PIN-protected continuity on real calls, then set `IVR_PHONE_VERIFIED=true` to publish the number. No nonprofit application or carrier activation has been submitted.
 
 If approval or country eligibility is unavailable, the public number remains blocked until a sponsor or another approved provider funds a real line. Browser calling and provider simulators do not satisfy this ordinary-phone requirement.

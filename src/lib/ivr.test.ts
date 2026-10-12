@@ -12,6 +12,8 @@ import { POST as incoming } from "@/app/api/ivr/incoming/route";
 import { POST as record } from "@/app/api/ivr/record/route";
 import { POST as processRecording } from "@/app/api/ivr/process/route";
 import { POST as wait } from "@/app/api/ivr/wait/route";
+import { GET as media } from "@/app/api/ivr/media/route";
+import { YARN_TTS_MODEL } from "./yarn-audio";
 const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
   getJob: vi.fn(),
@@ -63,8 +65,7 @@ beforeEach(() => {
     IVR_DATABASE_URL: "postgresql://test",
     NATLAS_LLM_API_URL: "https://llm.example.test",
     IVR_PROMPT_BASE_URL: "https://audio.example.test/prompts/",
-    IVR_TTS_API_URL: "https://tts.example.test",
-    IVR_TTS_LANGUAGES: "yo,ha,ig",
+    IVR_LANGUAGES: "en-NG,yo,ha,ig",
   }))
     vi.stubEnv(k, v);
   mocks.enqueue.mockResolvedValue(undefined);
@@ -101,7 +102,7 @@ describe("authenticated phone call journey", () => {
     vi.stubEnv("IVR_ENABLED", "false");
     expect(
       await (await incoming(request("/api/ivr/incoming"))).text(),
-    ).toContain("not available");
+    ).toContain("unavailable.wav");
     expect(configuration().configured).toBe(false);
   });
   it("limits unanswered menus", async () =>
@@ -111,13 +112,14 @@ describe("authenticated phone call journey", () => {
   it("offers a four-language keypad menu", async () => {
     const xml = await (await incoming(request("/api/ivr/incoming"))).text();
     expect(xml).toContain('input="dtmf"');
-    expect(xml).toContain("Igbo, press 4");
+    expect(xml).toContain("en-NG/welcome.wav");
+    expect(xml).not.toContain("<Say");
   });
   it("does not silently default invalid language choices", async () => {
     const xml = await (
       await record(request("/api/ivr/record?phase=language", { Digits: "7" }))
     ).text();
-    expect(xml).toContain("not recognised");
+    expect(xml).toContain("invalid-choice.wav");
     expect(xml).not.toContain("<Record");
   });
   it.each(["1", "2", "3", "4"])(
@@ -130,15 +132,16 @@ describe("authenticated phone call journey", () => {
       ).text();
       expect(xml).toContain("phase=consent");
       expect(xml).not.toContain("<Record");
-      if (digit !== "1") expect(xml).toContain("consent.mp3");
+      expect(xml).toContain("consent.wav");
+      expect(xml).not.toContain("<Say");
     },
   );
   it("refuses unconfigured non-English playback", async () => {
-    vi.stubEnv("IVR_TTS_LANGUAGES", "");
+    vi.stubEnv("IVR_LANGUAGES", "en-NG");
     const xml = await (
       await record(request("/api/ivr/record?phase=language", { Digits: "2" }))
     ).text();
-    expect(xml).toContain("not ready");
+    expect(xml).toContain("language-unavailable.wav");
     expect(xml).not.toContain("<Record");
   });
   it("ends when recording consent is declined", async () => {
@@ -245,7 +248,7 @@ describe("authenticated phone call journey", () => {
     expect(xml).toContain('<Pause length="5"/>');
     expect(xml).toContain("round=1");
   });
-  it("escapes generated text and includes replay options", async () => {
+  it("refuses legacy text-only replies instead of reading them with a provider voice", async () => {
     mocks.getJob.mockResolvedValue({
       status: "ready",
       result: { text: 'help <script> & "safe"' },
@@ -255,30 +258,51 @@ describe("authenticated phone call journey", () => {
         request("/api/ivr/wait?state=" + stateToken(call, "en-NG", true)),
       )
     ).text();
-    expect(xml).toContain("&lt;script&gt;");
-    expect(xml).toContain("hear the response again");
+    expect(xml).toContain("error.wav");
+    expect(xml).not.toContain("/api/ivr/media");
     expect(xml).not.toContain("<script>");
+    expect(xml).not.toContain("<Say");
   });
-  it("plays generated native-language audio rather than unsupported Say locales", async () => {
+  it.each(["en-NG", "yo", "ha", "ig"] as const)("plays verified %s YarnGPT reply audio with keypad follow-up and replay", async (language) => {
     mocks.getJob.mockResolvedValue({
       status: "ready",
-      result: { text: "guidance", audio: "YWJj", contentType: "audio/mpeg" },
+      result: { text: "guidance", audio: "YWJj", contentType: "audio/wav", speechModel: YARN_TTS_MODEL, language },
     });
     const xml = await (
-      await wait(request("/api/ivr/wait?state=" + stateToken(call, "yo", true)))
+      await wait(request("/api/ivr/wait?state=" + stateToken(call, language, true)))
     ).text();
     expect(xml).toContain("<Play>");
-    expect(xml).not.toContain('language="yo-NG"');
+    expect(xml).toContain("/api/ivr/media");
+    expect(xml).toContain(`${language}/menu.wav`);
+    expect(xml).not.toContain("<Say");
+  });
+  it("does not play speech in a language different from the call's selection", async () => {
+    mocks.getJob.mockResolvedValue({ status: "ready", result: { audio: "YWJj", contentType: "audio/wav", speechModel: YARN_TTS_MODEL, language: "ha" } });
+    const xml = await (await wait(request("/api/ivr/wait?state=" + stateToken(call, "yo", true)))).text();
+    expect(xml).toContain("yo/error.wav");
+    expect(xml).not.toContain("/api/ivr/media");
+  });
+  it("serves only signed, consented WAVs with the exact YarnGPT model and language", async () => {
+    const audio = Buffer.alloc(46); audio.write("RIFF"); audio.write("WAVE", 8);
+    mocks.getJob.mockResolvedValue({ status: "ready", result: { audio: audio.toString("base64"), contentType: "audio/wav", speechModel: YARN_TTS_MODEL, language: "en-NG" } });
+    const response = await media(new Request(origin + "/api/ivr/media?state=" + stateToken(call, "en-NG", true)));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-speech-model")).toBe(YARN_TTS_MODEL);
+    expect(response.headers.get("x-speech-language")).toBe("en-NG");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect((await media(new Request(origin + "/api/ivr/media?state=" + stateToken(call, "yo", true)))).status).toBe(404);
+    expect((await media(new Request(origin + "/api/ivr/media?state=" + stateToken(call, "en-NG")))).status).toBe(403);
+    expect((await media(new Request(origin + "/api/ivr/media?state=invalid"))).status).toBe(403);
   });
   it("hangs up instead of keeping the caller on hold indefinitely", async () => {
     const xml = await (
       await wait(
         request(
-          "/api/ivr/wait?round=32&state=" + stateToken(call, "en-NG", true),
+          "/api/ivr/wait?round=48&state=" + stateToken(call, "en-NG", true),
         ),
       )
     ).text();
-    expect(xml).toContain("could not prepare");
+    expect(xml).toContain("error.wav");
     expect(xml).not.toContain("<Pause");
   });
 });

@@ -1,0 +1,46 @@
+{
+  "en-NG": {
+    "welcome": "Welcome to IleraHer. Powered by N-ATLaS. For English, press 1. For Yoruba, press 2. For Hausa, press 3. For Igbo, press 4.",
+    "invalid-choice": "That choice was not recognised. Please choose a language using your keypad.",
+    "menu-retries": "We did not receive a valid choice. Goodbye.",
+    "unavailable": "IleraHer phone support is not available. Please try again later.",
+    "language-unavailable": "Audio support for that language is not ready. Please choose another language.",
+    "consent": "Your question will be recorded and processed by our speech and health services. The recording is deleted after processing. Questions and answers are temporarily stored for up to twenty minutes to support this call. This is health information, not emergency care. Press 1 to agree and continue, or 2 to end the call.",
+    "record": "After the beep, describe your menstrual health concern. Press hash when you finish. You have up to 45 seconds.",
+    "waiting": "Please wait while we prepare your guidance.",
+    "menu": "Press 1 to hear the response again. Press 2 to ask a follow-up question. Press 9 to change language. Press 3 to end the call.",
+    "error": "We could not prepare your response. If symptoms are severe or worrying, seek medical care. Press 2 to try again, 9 to change language, or 3 to end the call.",
+    "goodbye": "Goodbye.",
+    "history-choice": "We can remember your questions and advice for 30 days, linked privately to this phone number and protected by a six digit PIN. Only choose this on a phone you control. Press 1 to use saved history, or 2 for a call without saved history.",
+    "history-pin": "Enter your six digit PIN.",
+    "history-new-pin": "Choose a six digit PIN using your keypad. Remember it for future calls. Do not use an obvious PIN or share it.",
+    "history-unavailable": "We could not unlock saved history. After five incorrect attempts it is locked for fifteen minutes. Please call again later, or continue without saved history.",
+    "history-menu": "Press 1 to hear the response again. Press 2 to ask a follow-up question. Press 5 to delete saved history. Press 9 to change language. Press 3 to end the call.",
+    "history-delete": "Press 1 to permanently delete your saved history and PIN, or 2 to continue.",
+    "history-deleted": "Your saved history and PIN have been deleted. Goodbye."
+  },
+  "yo": {
+    "consent": "A ó gba ohùn ìbéèrè rẹ sílẹ̀, a ó sì lò ó fún iṣẹ́ ohùn àti ìlera wa. A ó pa ohùn náà rẹ́ lẹ́yìn tí a bá lò ó. A ó fi ìbéèrè àti ìdáhùn pamọ́ fún ìṣẹ́jú ogún láti ràn ìpè yìí lọ́wọ́. Èyí jẹ́ àlàyé ìlera, kì í ṣe ìtọ́jú pàjáwìrì. Tẹ ọ̀kan láti gbà kí o tẹ̀síwájú, tàbí méjì láti parí ìpè.",
+    "record": "Lẹ́yìn ohùn àmì, sọ ohun tó ń yọ ọ́ lẹ́nu nípa ìlera òṣù rẹ. Tẹ àmì hash nígbà tí o bá parí. O ní ìṣẹ́jú àáyá márùndínláàádọ́ta.",
+    "waiting": "Jọ̀wọ́ dúró díẹ̀ nígbà tí a ń pèsè ìtọ́sọ́nà rẹ.",
+    "menu": "Tẹ ọ̀kan láti gbọ́ ìdáhùn lẹ́ẹ̀kan sí i. Tẹ méjì láti béèrè ìbéèrè míì. Tẹ mẹ́sàn-án láti yí èdè padà. Tẹ mẹ́ta láti parí ìpè.",
+    "error": "A kò lè pèsè ìdáhùn rẹ. Bí ààmì àìsàn bá le tàbí ń yọ ọ́ lẹ́nu, wá ìtọ́jú ìṣègùn. Tẹ méjì láti tún gbìyànjú, mẹ́sàn-án láti yí èdè padà, tàbí mẹ́ta láti parí ìpè.",
+    "goodbye": "Ó dàbọ̀."
+  },
+  "ha": {
+    "consent": "Za a yi rikodin tambayarki kuma a sarrafa ta ta hanyar ayyukan muryar mu da na lafiya. Za a goge rikodin bayan an sarrafa shi. Za a ajiye tambayoyi da amsoshi na tsawon minti ashirin don taimaka wa wannan kira. Wannan bayani ne na lafiya, ba kulawar gaggawa ba. Danna ɗaya don yarda da ci gaba, ko biyu don ƙare kira.",
+    "record": "Bayan ƙarar alama, bayyana damuwarki game da lafiyar haila. Danna alamar hash idan kin gama. Kina da daƙiƙa arba'in da biyar.",
+    "waiting": "Ki ɗan jira yayin da muke shirya shawararki.",
+    "menu": "Danna ɗaya don sake jin amsa. Danna biyu don yin wata tambaya. Danna tara don sauya harshe. Danna uku don ƙare kira.",
+    "error": "Ba mu iya shirya amsarki ba. Idan alamomin sun yi tsanani ko suna damunki, nemi kulawar likita. Danna biyu don sake gwadawa, tara don sauya harshe, ko uku don ƙare kira.",
+    "goodbye": "Sai anjima."
+  },
+  "ig": {
+    "consent": "A ga-edekọ olu ajụjụ gị ma jiri ya na ọrụ olu na ahụike anyị. A ga-ehichapụ ndekọ olu ahụ mgbe a hazichara ya. A ga-echekwa ajụjụ na azịza ruo nkeji iri abụọ iji kwado oku a. Nke a bụ ozi ahụike, ọ bụghị nlekọta mberede. Pịa otu iji kweta ma gaa n'ihu, ma ọ bụ abụọ iji kwụsị oku.",
+    "record": "Mgbe ụda akara gasịrị, kọwaa nchegbu gị gbasara ahụike oge nsọ. Pịa akara hash mgbe ị gụsịrị. Ị nwere sekọnd iri anọ na ise.",
+    "waiting": "Biko chere ka anyị na-akwadebe ndụmọdụ gị.",
+    "menu": "Pịa otu iji nụ azịza ọzọ. Pịa abụọ iji jụọ ajụjụ ọzọ. Pịa itoolu iji gbanwee asụsụ. Pịa atọ iji kwụsị oku.",
+    "error": "Anyị enweghị ike ịkwadebe azịza gị. Ọ bụrụ na mgbaàmà siri ike ma ọ bụ na-enye gị nsogbu, chọọ nlekọta ahụike. Pịa abụọ iji nwaa ọzọ, itoolu iji gbanwee asụsụ, ma ọ bụ atọ iji kwụsị oku.",
+    "goodbye": "Ka ọ dị."
+  }
+}

@@ -7,7 +7,6 @@ import {
   prompt,
   readState,
   route,
-  say,
   stateToken,
   signState,
   twiml,
@@ -17,19 +16,19 @@ export async function POST(req: Request) {
   try {
     const form = await webhook(req);
     if (!configuration().configured)
-      return twiml(say("Phone support is not available.") + "<Hangup/>");
+      return twiml(prompt("en-NG", "unavailable", "Phone support is not available.") + "<Hangup/>");
     const url = new URL(req.url),
       phase = url.searchParams.get("phase");
     if (phase === "language") {
       const language = DIGIT_LANGUAGE[form.Digits];
       if (!language)
         return twiml(
-          say("That choice was not recognised.") +
+          prompt("en-NG", "invalid-choice", "That choice was not recognised.") +
             `<Redirect method="POST">${route("incoming", undefined, { attempt: String(Math.min(3, Number(url.searchParams.get("attempt")) || 1)) })}</Redirect>`,
         );
       if (!configuration().languages.includes(language))
         return twiml(
-          say("Audio support for that language is not ready yet.") +
+          prompt("en-NG", "language-unavailable", "Audio support for that language is not ready yet.") +
             `<Redirect method="POST">${route("incoming", undefined, { attempt: String(Math.min(3, Number(url.searchParams.get("attempt")) || 1)) })}</Redirect>`,
         );
       const token = stateToken(form.CallSid, language);
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
     if (phase === "consent" && form.Digits !== "1")
       return twiml(prompt(state.language, "goodbye", "Goodbye.") + "<Hangup/>");
     if (phase !== "consent" && phase !== "retry")
-      return twiml(say("Invalid call step.") + "<Hangup/>");
+      return twiml(prompt(state.language, "error", "Invalid call step.") + "<Hangup/>");
     if (phase === "retry" && !state.consented) return failWebhook();
     if (
       phase === "consent" &&

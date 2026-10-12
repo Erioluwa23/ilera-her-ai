@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   answer: vi.fn(),
   remove: vi.fn(),
   fetch: vi.fn(),
+  speech: vi.fn(),
 }));
 vi.mock("./ivr-jobs", () => ({
   claim: mocks.claim,
@@ -15,6 +16,7 @@ vi.mock("./ivr-jobs", () => ({
   getJob: mocks.getJob,
 }));
 vi.mock("./ivr-profiles", () => ({ callerHistory: mocks.history }));
+vi.mock("./reply-audio", () => ({ replyAudio: mocks.speech }));
 vi.mock("./natlas", () => ({
   NatlasSpeechProvider: class {
     transcribe = mocks.transcribe;
@@ -28,6 +30,8 @@ vi.mock("twilio", () => ({
 }));
 import { runJob } from "./ivr-worker";
 import type { CallState } from "./ivr";
+import { AsrError } from "./asr-contract";
+import { YARN_TTS_MODEL } from "./yarn-audio";
 const state: CallState = {
   id: "12345678-1234-1234-1234-123456789abc",
   call: "CA" + "b".repeat(32),
@@ -36,6 +40,7 @@ const state: CallState = {
   consented: true,
 };
 beforeEach(() => {
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
   vi.stubGlobal("fetch", mocks.fetch);
   vi.stubEnv("TWILIO_ACCOUNT_SID", "AC" + "a".repeat(32));
@@ -54,6 +59,9 @@ beforeEach(() => {
   mocks.history.mockResolvedValue([]);
   mocks.getJob.mockResolvedValue(null);
   mocks.answer.mockResolvedValue({ text: "generated guidance" });
+  const audio = Buffer.alloc(46);
+  audio.write("RIFF"); audio.writeUInt32LE(38, 4); audio.write("WAVE", 8);
+  mocks.speech.mockResolvedValue({ audio, contentType: "audio/wav", model: YARN_TTS_MODEL });
 });
 describe("contextual phone worker", () => {
   it("passes the selected language and dated unlocked history to the official providers", async () => {
@@ -66,7 +74,6 @@ describe("contextual phone worker", () => {
       },
     ];
     mocks.history.mockResolvedValue(history);
-    vi.stubEnv("IVR_TTS_API_URL", "https://tts.example.test");
     await runJob({
       ...state,
       language: "yo",
@@ -119,5 +126,32 @@ describe("contextual phone worker", () => {
     await runJob(state);
     expect(mocks.fetch).not.toHaveBeenCalled();
     expect(mocks.finish).not.toHaveBeenCalled();
+  });
+  it.each(["en-NG", "yo", "ha", "ig"] as const)("speaks %s replies with verified YarnGPT and never an alternate endpoint", async (language) => {
+    vi.stubEnv("IVR_TTS_API_URL", "https://unused.example.test");
+    await runJob({ ...state, language });
+    const result = mocks.finish.mock.calls[0][2];
+    expect(mocks.speech).toHaveBeenCalledWith(result.text, language, expect.any(AbortSignal));
+    expect(result).toMatchObject({ speechModel: YARN_TTS_MODEL, language, contentType: "audio/wav" });
+    expect(Buffer.from(result.audio, "base64").toString("ascii", 0, 4)).toBe("RIFF");
+    expect(mocks.fetch).toHaveBeenCalledOnce();
+    expect(mocks.remove).toHaveBeenCalledOnce();
+  });
+  it.each([
+    { model: "other-model", contentType: "audio/wav", audio: Buffer.from("RIFFxxxxWAVE") },
+    { model: YARN_TTS_MODEL, contentType: "audio/mpeg", audio: Buffer.from("mp3") },
+    { model: YARN_TTS_MODEL, contentType: "audio/wav", audio: Buffer.from("broken") },
+  ])("fails closed when speech provenance or WAV audio is invalid", async (speech) => {
+    mocks.speech.mockResolvedValue(speech);
+    await runJob(state);
+    expect(mocks.finish).toHaveBeenCalledWith(state, "lease", null);
+    expect(mocks.remove).toHaveBeenCalledOnce();
+  });
+  it("does not fall back to provider speech when the speech quota is exhausted", async () => {
+    mocks.speech.mockRejectedValue(new AsrError("ASR_QUOTA", 429, "quota", "2026-10-12T16:33:29Z"));
+    await runJob(state);
+    expect(mocks.finish).toHaveBeenCalledWith(state, "lease", null);
+    expect(mocks.fetch).toHaveBeenCalledOnce();
+    expect(mocks.remove).toHaveBeenCalledOnce();
   });
 });

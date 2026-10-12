@@ -64,7 +64,7 @@ export async function claim(state: CallState) {
   await schema();
   const id = randomUUID();
   const data = await database().query(
-    "UPDATE ileraher_ivr_jobs SET status='processing',attempts=attempts+1,lease_until=now()+interval '150 seconds',lease_id=$3 WHERE id=$1 AND call_hash=$2 AND expires_at>now() AND attempts<2 AND (status='queued' OR (status='processing' AND lease_until<now())) RETURNING recording_sid",
+    "UPDATE ileraher_ivr_jobs SET status='processing',attempts=attempts+1,lease_until=now()+interval '240 seconds',lease_id=$3 WHERE id=$1 AND call_hash=$2 AND expires_at>now() AND attempts<2 AND (status='queued' OR (status='processing' AND lease_until<now())) RETURNING recording_sid",
     [state.id, callHash(state.call), id],
   );
   return data.rows[0]
@@ -77,6 +77,8 @@ export type JobResult = {
   reported?: string[];
   audio?: string;
   contentType?: string;
+  speechModel?: string;
+  language?: CallState["language"];
 };
 export async function finish(
   state: CallState,
