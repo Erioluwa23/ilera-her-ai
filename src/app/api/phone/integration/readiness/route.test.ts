@@ -36,15 +36,15 @@ describe("private SIM setup diagnostics", () => {
     expect(data.blockers).toContain("pilot_paused"); expect(data.blockers).toContain("inbound_call_unverified");
     expect(data.models).toMatchObject({ textLoaded: false, textAccess: false, textFallback: "curated", speechComputeTested: false });
   });
-  it("requires a recent actual gateway and restricts languages to reviewed prompts and configured speech", async () => {
+  it("requires a recent actual gateway and uses YarnGPT for all reviewed languages", async () => {
     vi.stubEnv("SIM_PHONE_ENABLED", "true"); vi.stubEnv("SIM_PHONE_VERIFIED", "true");
     vi.stubEnv("VOICE_TTS_API_URL", "https://speech.example"); vi.stubEnv("VOICE_TTS_LANGUAGES", "yo");
     mocks.query.mockResolvedValue({ rows: [{ gateway_ready: true, recent: false, languages: ["yo", "ha", "invalid"], checked_at: new Date("2026-10-10T12:00:00Z") }] });
-    let data = await (await GET(request())).json(); expect(data.publicReady).toBe(false); expect(data.languages).toEqual(["yo"]);
+    let data = await (await GET(request())).json(); expect(data.publicReady).toBe(false); expect(data.languages).toEqual(["yo", "ha"]);
     expect(data.gateway.languages).toEqual(["yo", "ha"]);
     mocks.query.mockResolvedValue({ rows: [{ gateway_ready: true, recent: true, languages: ["yo"] }] });
     data = await (await GET(request())).json(); expect(data.publicReady).toBe(true);
-    expect(data.models.speechLoaded).toBeNull(); expect(data.models.speechComputeTested).toBe(false);
+    expect(data.models.speechLoaded).toBe(true); expect(data.models.speechMode).toBe("yarngpt"); expect(data.models.speechComputeTested).toBe(false);
   });
   it("reports unavailable checks without exposing provider exceptions or secrets", async () => {
     mocks.schema.mockRejectedValue(new Error("database-password-private"));

@@ -12,8 +12,9 @@ database, or external analytics service is introduced.
    optional information pauses dates while period logging remains available.
 3. Log or edit period starts, ends, and daily symptoms in the existing Log flow.
 4. Read the API's estimate on the interactive calendar. The insight can be read
-   aloud on demand using a local device voice in the selected language. No cycle
-   history is sent to an LLM or cloud speech service for this feature.
+   aloud on demand using YarnGPT in the selected language. The Listen control
+   discloses that the displayed summary text is sent to the speech service.
+   Full period records are not sent, and no LLM is used for this feature.
 5. If a gap needs review, confirm one completed cycle, mark missing logs, or correct
    dates. A missing interval resets model continuity; no intervening periods are
    invented. Earlier records stay saved.
@@ -168,7 +169,7 @@ Tests cover explicit cold start, prior smoothing, weighted/robust estimation,
 baseline selection, date boundaries, duplicate/future dates, gap review, history
 resets, context pauses, empirical windows, no future-data leakage, authenticated
 APIs, encryption/tampering, owner isolation, transactions, stale edits, deletion,
-manual migration, API-driven calendar navigation and local-only insight playback.
+manual migration, API-driven calendar navigation and on-demand insight playback.
 Locally the database suite uses embedded PostgreSQL (the existing PGlite test
 dependency); CI runs the same cycle suite against PostgreSQL 16. Test fixtures
 are synthetic and are not deployed as patient data.

@@ -137,16 +137,19 @@ export default function CyclePredictionPanel({
           <div className="ux-actions">
             <button
               className="ux-btn ux-secondary"
+              disabled={voice.state === "loading"}
               onClick={() =>
                 voice.state === "playing"
                   ? voice.pause()
                   : voice.state === "paused"
                     ? voice.resume()
-                    : voice.play(spoken, language, { localOnly: true })
+                    : voice.play(spoken, language)
               }
             >
               <Icon name={voice.state === "playing" ? "pause" : "play"} />
-              {voice.state === "playing"
+              {voice.state === "loading"
+                ? t("processingVoice")
+                : voice.state === "playing"
                 ? t("pause")
                 : voice.state === "paused"
                   ? t("resume")
@@ -162,10 +165,10 @@ export default function CyclePredictionPanel({
               </button>
             )}
           </div>
-          <p className="ux-small">{t("deviceVoice")}</p>
+          <p className="ux-small">{t("yarnInsightProcessing")}</p>
           {voice.error && (
             <p role="status" className="ux-small">
-              {t("voiceUnavailable")}
+              {t(voice.error)}
             </p>
           )}
           {store.preferences.reminderConsent &&

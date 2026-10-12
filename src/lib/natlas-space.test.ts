@@ -94,9 +94,11 @@ describe("answer and speech contracts",()=>{
     predict.mockResolvedValue({data:[JSON.stringify({text:"Answer",model:"other",provider:"ileraher_zerogpu_llm",language:"yoruba"})]});
     await expect(generateViaNatlasSpace("Question",{},"yo","System")).rejects.toThrow();
   });
-  it("downloads only verified WAV audio and closes the client",async()=>{
-    const close=vi.fn();vi.spyOn(Client,"connect").mockResolvedValue({predict:vi.fn().mockResolvedValue({data:[{url:"https://kolade1-ileraher-natlas-runtime.hf.space/gradio_api/file=/tmp/reply.wav"},JSON.stringify({model:"saheedniyi/YarnGPT2b",provider:"ileraher_zerogpu_tts",language:"igbo"})]}),close,fetch:vi.fn()} as unknown as Client);
+  it.each(["en-NG", "yo", "ig", "ha"] as const)("downloads verified YarnGPT WAV audio for %s and closes the client",async language=>{
+    const close=vi.fn(), predict=vi.fn().mockResolvedValue({data:[{url:"https://kolade1-ileraher-natlas-runtime.hf.space/gradio_api/file=/tmp/reply.wav"},JSON.stringify({model:"saheedniyi/YarnGPT2b",provider:"ileraher_zerogpu_tts",language:speechLanguageFromUi(language)})]});
+    vi.spyOn(Client,"connect").mockResolvedValue({predict,close,fetch:vi.fn()} as unknown as Client);
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(Buffer.from("RIFFtestWAVEaudio"))));
-    expect((await synthesizeViaYarnSpace("Hello","ig")).toString()).toBe("RIFFtestWAVEaudio");expect(close).toHaveBeenCalled();
+    expect((await synthesizeViaYarnSpace("Hello",language)).toString()).toBe("RIFFtestWAVEaudio");expect(close).toHaveBeenCalled();
+    expect(predict).toHaveBeenCalledWith("/synthesize", ["Hello", speechLanguageFromUi(language)]);
   });
 });

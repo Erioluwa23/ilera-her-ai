@@ -26,11 +26,7 @@ export async function GET(req: Request) {
     const row = gatewayResult.status === "fulfilled" ? gatewayResult.value : undefined;
     const state: Record<string, unknown> = modelResult.status === "fulfilled" ? modelResult.value : {};
     const installed = PHONE_LANGUAGES.filter(language => Array.isArray(row?.languages) && row.languages.includes(language));
-    const externalTts = Boolean(process.env.VOICE_TTS_API_URL);
-    const ttsLanguages = externalTts
-      ? (process.env.VOICE_TTS_LANGUAGES || "").split(",").map(value => value.trim())
-      : PHONE_LANGUAGES;
-    const languages = installed.filter(language => ttsLanguages.includes(language));
+    const languages = installed;
     const gateway = {
       checked: gatewayResult.status === "fulfilled",
       recent: row?.recent === true,
@@ -47,8 +43,8 @@ export async function GET(req: Request) {
       textFailure: ["access", "load"].includes(String(state.llmFailureCategory)) ? state.llmFailureCategory : null,
       textCredential: process.env.NATLAS_LLM_API_URL ? "configured-endpoint" : "space-secret",
       textFallback: "curated",
-      speechLoaded: externalTts ? null : state.ttsLoaded === true,
-      speechMode: externalTts ? "configured-endpoint" : "yarngpt",
+      speechLoaded: state.ttsLoaded === true,
+      speechMode: "yarngpt",
       // A status call neither acquires a GPU nor proves remaining quota.
       speechComputeTested: false,
     };
@@ -60,9 +56,9 @@ export async function GET(req: Request) {
     else if (!gateway.ready) blockers.push("gateway_offline");
     if (!languages.length) blockers.push("reviewed_prompts_missing");
     if (!models.reachable || !models.asrLoaded) blockers.push("asr_runtime_unavailable");
-    if (!externalTts && !models.speechLoaded) blockers.push("speech_runtime_unavailable");
+    if (!models.speechLoaded) blockers.push("speech_runtime_unavailable");
     const publicReady = Boolean(phoneNumber && enabled && verified && gateway.ready && languages.length &&
-      models.reachable && models.asrLoaded && (externalTts || models.speechLoaded));
+      models.reachable && models.asrLoaded && models.speechLoaded);
     return phoneResponse({ provider: "sim", capacity: 1, phoneNumber, enabled, verified,
       publicReady, languages, gateway, models, blockers });
   } catch (error) { return phoneFailure(error); }

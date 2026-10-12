@@ -21,17 +21,36 @@ The store refuses new writes above 50 MiB of audio or 300 messages. It does not 
 
 ## Reply audio
 
-Recorded user audio is always stored as a blob when device storage succeeds. Existing device speech synthesis can replay saved reply text where the device has a voice for that language. Browser speech synthesis does **not** expose a downloadable audio file; the application does not pretend that it does.
+Tapping the assistant's **Listen to reply** player calls `POST /api/voice/audio`,
+which uses `saheedniyi/YarnGPT2b` in `Kolade1/ileraHer-natlas-runtime`. The
+response includes the care disclaimer. The client verifies the model and language
+headers before saving the WAV blob and its `audioModel` provenance in IndexedDB.
+The same player starts playback, supports pause/seek/speed, and reuses that saved
+blob on replay without another synthesis request. If the browser blocks playback
+after an asynchronous request, the generated audio remains available for another
+explicit tap. Assistant audio from older versions without model provenance is
+regenerated on listening; the old file remains downloadable until replaced.
 
-For saved, shareable assistant audio, securely configure in Render:
+The runtime selects these speakers:
 
-- `VOICE_TTS_API_URL`: trusted HTTPS endpoint accepting POST JSON `{ "text": "...", "language": "en-NG" }` (also yo, ha, ig) and returning raw audio/mpeg or audio/wav bytes.
-- `VOICE_TTS_API_KEY`: optional Bearer key, server-only.
-- `VOICE_TTS_LANGUAGES`: comma-separated language codes tested with that provider, e.g. en-NG,yo,ha,ig.
+| Language | UI code | YarnGPT speaker |
+|---|---|---|
+| English | en-NG | idera |
+| Yoruba | yo | yoruba_female2 |
+| Igbo | ig | igbo_female2 |
+| Hausa | ha | hausa_female2 |
 
-This is a speech-output adapter, not an alternate ASR or LLM. N-ATLAS ASR and LLM requirements are unchanged. No external TTS provider is provisioned or selected by this change. Generated audio is limited to 4 MiB, synthesis requests time out after 20 seconds, redirects are rejected, and provider URLs are never accepted from the client. Responses are private/no-store. The reply audio includes the educational-care disclaimer. Assistant audio is saved once and reused; users can retry audio generation later with Save reply audio if unavailable initially. The configured speech service receives health response text.
+There is no browser/device speech synthesis or alternate `VOICE_TTS_*` provider
+override. Quota failures return HTTP 429 and a translated retry notice; other
+speech failures preserve the text reply. Never replace an unavailable YarnGPT
+voice with a different speaker. ASR and answer-generation providers are unchanged.
 
-Without this configuration, reply text is saved, device replay is available where supported, and the interface clearly says downloadable audio is pending. It offers text export rather than inventing an audio download.
+Cycle insights also use YarnGPT on an explicit Listen action. The interface states
+that listening sends the displayed summary text to the speech service. It does not
+send full period records or use an LLM. Insight audio is cached only in memory.
+Saved chat WAV files can replay offline; generating new speech needs connectivity
+and available Hugging Face compute quota. Responses are private/no-store and audio
+is capped at 4 MiB. No extra paid infrastructure is configured.
 
 ## Verification
 

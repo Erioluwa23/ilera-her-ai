@@ -20,6 +20,7 @@ describe("SIM number publication", () => {
     mocks.query.mockResolvedValue({ rows: [] }); expect((await (await GET()).json()).phoneNumber).toBeNull();
   });
   it("does not publish the number while speech models are unavailable", async () => {
+    vi.stubEnv("VOICE_TTS_API_URL", "https://old-provider.example");
     mocks.inspect.mockResolvedValue({ reachable: true, gatedModelsAccessible: true, modelsLoaded: true, ttsLoaded: false });
     expect((await (await GET()).json()).ready).toBe(false);
   });

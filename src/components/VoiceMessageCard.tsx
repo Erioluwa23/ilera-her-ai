@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useVoicePlayback } from "@/lib/use-voice-playback";
+import { useState } from "react";
+import { YARN_TTS_MODEL } from "@/lib/yarn-audio";
 import { useOnline } from "@/lib/ui-utils";
 import type { VoiceMessage } from "@/lib/voice-chat";
 import { useUI } from "@/lib/ui-language";
@@ -25,40 +25,18 @@ export default function VoiceMessageCard({
   onFollowUp: () => void;
   onReview: () => void;
   onRetry: () => void;
-  onSaveAudio: () => void;
+  onSaveAudio: () => Promise<Blob | undefined>;
 }) {
   const { t, locale } = useUI(),
     [menu, setMenu] = useState(false),
     [sharing, setSharing] = useState(false),
     [notice, setNotice] = useState("");
-  const playback = useVoicePlayback(),
-    online = useOnline();
-  const [deviceAvailable, setDeviceAvailable] = useState(false);
-  useEffect(() => {
-    if (!("speechSynthesis" in window)) return;
-    const check = () =>
-      setDeviceAvailable(
-        window.speechSynthesis
-          .getVoices()
-          .some(
-            (v) =>
-              v.lang.toLowerCase().split("-")[0] ===
-                message.language.toLowerCase().split("-")[0] &&
-              (online || v.localService),
-          ),
-      );
-    check();
-    window.speechSynthesis.addEventListener("voiceschanged", check);
-    return () =>
-      window.speechSynthesis.removeEventListener("voiceschanged", check);
-  }, [message.language, online]);
-  useEffect(() => {
-    const stop = (e: Event) => {
-      if ((e as CustomEvent).detail !== `device-${message.id}`) playback.stop();
-    };
-    window.addEventListener("ileraher-audio-play", stop);
-    return () => window.removeEventListener("ileraher-audio-play", stop);
-  }, [message.id, playback.stop]);
+  const online = useOnline();
+  // Old audio with unknown provenance stays downloadable, but listening
+  // regenerates it with YarnGPT before attributing a speaker to it.
+  const audio = message.role === "assistant"
+    ? (message.audioModel === YARN_TTS_MODEL ? message.audio : undefined)
+    : message.audio;
   const stamp = new Date(message.createdAt).toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
@@ -113,7 +91,13 @@ export default function VoiceMessageCard({
           {t("reply")} · {parent.text?.slice(0, 75) || t("recording")}
         </a>
       )}
-      {message.audio && <AudioPlayer audio={message.audio} id={message.id} />}
+      {(audio || message.role === "assistant") && <AudioPlayer
+        audio={audio}
+        id={message.id}
+        onRequestAudio={message.role === "assistant" ? onSaveAudio : undefined}
+        disabled={busy || (!audio && !online)}
+      />}
+      {message.role === "assistant" && <small>{t("yarnVoice")}</small>}
       {message.text && (message.role === "assistant" || !message.audio) ? (
         <>
           <p>{message.text}</p>
@@ -150,44 +134,6 @@ export default function VoiceMessageCard({
           {message.error}
         </p>
       )}
-      {message.role === "assistant" && !message.audio && deviceAvailable && (
-        <div className="ux-message-actions">
-          <button
-            className="ux-secondary"
-            onClick={() => {
-              if (playback.state === "playing") playback.pause();
-              else if (playback.state === "paused") playback.resume();
-              else {
-                window.dispatchEvent(
-                  new CustomEvent("ileraher-audio-play", {
-                    detail: `device-${message.id}`,
-                  }),
-                );
-                playback.play(
-                  `${message.text} ${message.disclaimer || ""}`,
-                  message.language,
-                );
-              }
-            }}
-          >
-            <Icon
-              name={playback.state === "playing" ? "pause" : "play"}
-              size={16}
-            />
-            {playback.state === "playing"
-              ? t("pause")
-              : playback.state === "paused"
-                ? t("resume")
-                : t("listenReply")}
-          </button>
-          <small>{t("deviceVoice")}</small>
-        </div>
-      )}
-      {playback.error && (
-        <p role="status" className="ux-alert">
-          {t("voiceUnavailable")}
-        </p>
-      )}
       <div className="ux-message-actions">
         {message.role === "user" && !message.confirmed && (
           <button className="ux-secondary" disabled={busy} onClick={onReview}>
@@ -203,16 +149,6 @@ export default function VoiceMessageCard({
           <button className="ux-secondary" disabled={busy} onClick={onFollowUp}>
             <Icon name="reply" size={16} />
             {t("reply")}
-          </button>
-        )}
-        {message.role === "assistant" && !message.audio && (
-          <button
-            className="ux-secondary"
-            disabled={busy}
-            onClick={onSaveAudio}
-          >
-            <Icon name="play" size={16} />
-            {t("replyAudio")}
           </button>
         )}
       </div>

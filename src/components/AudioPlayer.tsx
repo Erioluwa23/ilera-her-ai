@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "./Icon";
 import { useUI } from "@/lib/ui-language";
 const format = (n: number) =>
@@ -7,9 +7,13 @@ const format = (n: number) =>
 export default function AudioPlayer({
   audio,
   id,
+  onRequestAudio,
+  disabled = false,
 }: {
-  audio: Blob;
+  audio?: Blob;
   id: string;
+  onRequestAudio?: () => Promise<Blob | undefined>;
+  disabled?: boolean;
 }) {
   const { t } = useUI(),
     element = useRef<HTMLAudioElement>(null);
@@ -19,9 +23,29 @@ export default function AudioPlayer({
     [time, setTime] = useState(0),
     [speed, setSpeed] = useState(1),
     [wave, setWave] = useState<number[]>([]),
-    [error, setError] = useState(false);
+    [error, setError] = useState(false),
+    [generated, setGenerated] = useState<Blob>(),
+    [loading, setLoading] = useState(false);
+  const source = audio || generated;
+  const mounted = useRef(false), requestLock = useRef(false), autoplay = useRef(false);
   useEffect(() => {
-    const next = URL.createObjectURL(audio);
+    mounted.current = true;
+    return () => { mounted.current = false; autoplay.current = false; element.current?.pause(); };
+  }, []);
+  const playElement = useCallback(async () => {
+    const el = element.current;
+    if (!el) return;
+    try {
+      el.playbackRate = speed;
+      await el.play();
+      if (mounted.current) setError(false);
+    } catch {
+      if (mounted.current) setError(true);
+    }
+  }, [speed]);
+  useEffect(() => {
+    if (!source) return;
+    const next = URL.createObjectURL(source);
     setUrl(next);
     setTime(0);
     setDuration(0);
@@ -31,7 +55,7 @@ export default function AudioPlayer({
     void (async () => {
       try {
         ctx = new AudioContext();
-        const buffer = await ctx.decodeAudioData(await audio.arrayBuffer());
+        const buffer = await ctx.decodeAudioData(await source.arrayBuffer());
         if (!alive) return;
         setDuration(buffer.duration);
         const data = buffer.getChannelData(0);
@@ -58,34 +82,58 @@ export default function AudioPlayer({
       alive = false;
       URL.revokeObjectURL(next);
     };
-  }, [audio]);
+  }, [source]);
+  useEffect(() => {
+    if (url && autoplay.current) {
+      autoplay.current = false;
+      void playElement();
+    }
+  }, [url, playElement]);
   useEffect(() => {
     const pause = (e: Event) => {
-      if ((e as CustomEvent).detail !== id) element.current?.pause();
+      if ((e as CustomEvent).detail !== id) {
+        autoplay.current = false;
+        element.current?.pause();
+      }
     };
     window.addEventListener("ileraher-audio-play", pause);
     return () => window.removeEventListener("ileraher-audio-play", pause);
   }, [id]);
   async function toggle() {
+    if (disabled || requestLock.current) return;
     const el = element.current;
     if (!el) return;
-    if (!el.paused) {
+    if (source && !el.paused) {
       el.pause();
       return;
     }
     window.dispatchEvent(
       new CustomEvent("ileraher-audio-play", { detail: id }),
     );
-    try {
-      el.playbackRate = speed;
-      await el.play();
+    if (!source && onRequestAudio) {
+      requestLock.current = true;
+      autoplay.current = true;
+      setLoading(true);
       setError(false);
-    } catch {
-      setError(true);
+      try {
+        const blob = await onRequestAudio();
+        if (mounted.current && blob) setGenerated(blob);
+        else autoplay.current = false;
+      } catch {
+        autoplay.current = false;
+        if (mounted.current) setError(true);
+      } finally {
+        requestLock.current = false;
+        if (mounted.current) setLoading(false);
+      }
+    } else if (url) {
+      await playElement();
+    } else {
+      autoplay.current = true;
     }
   }
   return (
-    <div>
+    <div aria-busy={loading}>
       <div className="ux-audio">
         <audio
           ref={element}
@@ -102,7 +150,8 @@ export default function AudioPlayer({
         />
         <button
           className="ux-audio-play"
-          aria-label={playing ? t("pause") : t("play")}
+          aria-label={loading ? t("processingVoice") : !source && onRequestAudio ? t("listenReply") : playing ? t("pause") : t("play")}
+          disabled={disabled || loading}
           onClick={toggle}
         >
           <Icon name={playing ? "pause" : "play"} size={20} />
@@ -131,7 +180,7 @@ export default function AudioPlayer({
             max={duration || 0}
             step=".1"
             value={Math.min(time, duration)}
-            disabled={!duration}
+            disabled={!duration || loading}
             aria-label={t("seek")}
             onChange={(e) => {
               if (element.current) {
@@ -146,6 +195,7 @@ export default function AudioPlayer({
         </div>
         <button
           className="ux-audio-speed"
+          disabled={!source || loading}
           aria-label={`${t("speed")} ${speed}×`}
           onClick={() => {
             const next = speed === 1 ? 1.5 : speed === 1.5 ? 2 : 1;
@@ -156,9 +206,10 @@ export default function AudioPlayer({
           {speed}×
         </button>
       </div>
+      {loading && <small role="status">{t("processingVoice")}</small>}
       {error && (
         <small role="alert">
-          {t("retry")} · {t("download")}
+          {t("audioPlaybackError")}
         </small>
       )}
     </div>

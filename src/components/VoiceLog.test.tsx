@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { VoiceMessage } from "@/lib/voice-chat";
+import { YARN_TTS_MODEL } from "@/lib/yarn-audio";
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
   save: vi.fn().mockResolvedValue(undefined),
@@ -82,6 +83,14 @@ beforeEach(() => {
   });
   vi.stubGlobal("MediaRecorder", Recorder);
   vi.stubGlobal("fetch", vi.fn());
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async function (this: HTMLMediaElement) {
+    Object.defineProperty(this, "paused", { configurable: true, value: false });
+    this.dispatchEvent(new Event("play"));
+  });
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(function (this: HTMLMediaElement) {
+    Object.defineProperty(this, "paused", { configurable: true, value: true });
+    this.dispatchEvent(new Event("pause"));
+  });
   Object.defineProperty(URL, "createObjectURL", {
     configurable: true,
     value: vi.fn(() => "blob:test"),
@@ -105,6 +114,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 describe("explicit voice review workflow", () => {
   it("stops and saves recording without uploading; supports pause and resume", async () => {
@@ -224,5 +234,79 @@ describe("explicit voice review workflow", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+function assistant(language: VoiceMessage["language"] = "en-NG"): VoiceMessage {
+  return { id: "answer", conversationId: "one", role: "assistant", createdAt: 1,
+    language, text: "Synthetic reply", disclaimer: "Synthetic care notice" };
+}
+function audioResponse(language: string) {
+  return new Response(new Uint8Array([1, 2, 3]), { headers: {
+    "content-type": "audio/wav", "x-speech-model": YARN_TTS_MODEL, "x-speech-language": language,
+  } });
+}
+describe("YarnGPT is the chat speaker", () => {
+  it.each(["en-NG", "yo", "ig", "ha"] as const)("listens in %s, saves verified audio, and replays without another request", async language => {
+    const speak = vi.fn(); vi.stubGlobal("speechSynthesis", { speak });
+    mocks.load.mockResolvedValue([assistant(language)]);
+    vi.mocked(fetch).mockResolvedValue(audioResponse(language));
+    await mount();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("YarnGPT voice");
+    expect(host.textContent).not.toContain("Device voice");
+    await click("Listen to reply");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string)).toEqual({
+      text: "Synthetic reply Synthetic care notice", language,
+    });
+    expect(mocks.save).toHaveBeenLastCalledWith(expect.objectContaining({
+      id: "answer", audioModel: YARN_TTS_MODEL, filename: "ileraher-answer.wav",
+    }));
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
+    await click("Pause");
+    await click("Play audio");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2);
+    expect(speak).not.toHaveBeenCalled();
+  });
+  it("keeps the reply when quota is exhausted and never calls device speech", async () => {
+    const speak = vi.fn(); vi.stubGlobal("speechSynthesis", { speak });
+    mocks.load.mockResolvedValue([assistant("yo")]);
+    vi.mocked(fetch).mockResolvedValue(new Response("quota", { status: 429 }));
+    await mount(); await click("Listen to reply");
+    expect(host.textContent).toContain("Synthetic reply");
+    expect(host.textContent).toContain("YarnGPT's speech limit has been reached");
+    expect(mocks.save.mock.calls.at(-1)?.[0].audio).toBeUndefined();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(speak).not.toHaveBeenCalled();
+  });
+  it("discards a cancelled generation even if the network later returns audio", async () => {
+    mocks.load.mockResolvedValue([assistant()]);
+    let complete!: (response: Response) => void;
+    vi.mocked(fetch).mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+    await mount(); await click("Listen to reply");
+    const signal = vi.mocked(fetch).mock.calls[0][1]?.signal;
+    await click("Cancel");
+    expect(signal?.aborted).toBe(true);
+    await act(async () => { complete(audioResponse("en-NG")); });
+    await settle();
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+  it("plays persisted YarnGPT audio offline without regenerating it", async () => {
+    const message = { ...assistant(), audio: new Blob(["saved"], { type: "audio/wav" }), audioModel: YARN_TTS_MODEL };
+    mocks.load.mockResolvedValue([message]);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    await mount(); await click("Play audio");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
+  });
+  it("does not attribute an old unknown speaker to YarnGPT", async () => {
+    mocks.load.mockResolvedValue([{ ...assistant(), audio: new Blob(["old-provider"], { type: "audio/wav" }) }]);
+    vi.mocked(fetch).mockResolvedValue(audioResponse("en-NG"));
+    await mount(); await click("Listen to reply");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.save).toHaveBeenLastCalledWith(expect.objectContaining({ audioModel: YARN_TTS_MODEL }));
   });
 });

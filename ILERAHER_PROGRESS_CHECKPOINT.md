@@ -1,3 +1,40 @@
+## 2026-10-12 — YarnGPT is the application speaker
+
+User requested YarnGPT for English, Yoruba, Igbo and Hausa, replacing robotic
+browser/device speech. The chat/lite player now generates speech on its existing
+Listen action, verifies the returned model/language, persists the WAV and
+`audioModel` in IndexedDB, starts playback and reuses the saved audio on replay.
+Unknown historical assistant-audio provenance is regenerated on demand before
+being identified as YarnGPT; recordings, conversations and downloads are retained.
+
+Cycle insights also use on-demand YarnGPT. Their Listen control discloses sending
+only the displayed summary text to the speech service. Full period records are
+not sent; no prediction algorithm or LLM is changed. Insight audio is cached only
+in memory. Pending requests can be stopped and stale results do not start speech.
+No application source invokes browser speech synthesis. There is no device-voice
+fallback or `VOICE_TTS_*` override; SIM readiness reflects YarnGPT availability.
+Existing ASR, answer generation, SIM activation and dedicated number are preserved.
+
+The existing runtime mapping is English/idera, Yoruba/yoruba_female2,
+Igbo/igbo_female2 and Hausa/hausa_female2. Its deployed app.py matches this
+repository's runtime source. No Hugging Face weights, hardware, secrets or paid
+resources were changed.
+
+Local validation: 363 JavaScript tests passed (1 existing SIM Python bridge check
+skipped locally), the production build including TypeScript passed, 10 model-
+runtime boundary tests passed, and git diff --check passed. Focused coverage
+exercises all four language routes, model/language provenance, saved offline
+replay, cancellation, unknown old audio and quota failure without device speech.
+React structure, event cleanup, keyboard labels and async request handling were
+reviewed using the React best-practices skill. These tests use synthetic responses
+and do not establish pronunciation quality or real-device audio acceptance.
+
+Before deployment, live health reported the owned Space RUNNING with both text
+and TTS models loaded. A non-sensitive English synthesis test returned HTTP 429
+with exhausted speech compute quota. Model loading does not prove available GPU
+quota; fresh production speech remains blocked until quota is available. Final
+deployment/CI and post-deploy checks will be recorded after verification.
+
 ## 2026-10-05 — spoken replies implementation
 
 - Runtime is deployed to the existing free ZeroGPU Space `Kolade1/ileraHer-natlas-runtime`; latest runtime revision `99ddb12dcc1d2ed20aebfadc4d62c5ab6295e7bf` is RUNNING.

@@ -1,77 +1,87 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { IlaraLanguage } from "./languages";
+import { requestYarnAudio, YarnAudioError, type SpeechErrorKey } from "./yarn-audio";
 export function useVoicePlayback() {
-  const [state, setState] = useState<"idle" | "playing" | "paused">("idle"),
-    [error, setError] = useState("");
-  const active = useRef<SpeechSynthesisUtterance | null>(null);
-  useEffect(
-    () => () => {
-      active.current = null;
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    },
-    [],
-  );
+  const [state, setState] = useState<"idle" | "loading" | "playing" | "paused">("idle"),
+    [error, setError] = useState<SpeechErrorKey | "audioPlaybackError" | "">("");
+  const id = useId();
+  const active = useRef<HTMLAudioElement | null>(null),
+    request = useRef<AbortController | null>(null),
+    objectUrl = useRef<string | null>(null),
+    cache = useRef<{ key: string; audio: Blob } | null>(null),
+    alive = useRef(false);
   const stop = useCallback(() => {
+    request.current?.abort();
+    request.current = null;
+    const audio = active.current;
     active.current = null;
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    setState("idle");
+    audio?.pause();
+    if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+    objectUrl.current = null;
+    if (alive.current) { setState("idle"); setError(""); }
   }, []);
-  function play(
-    text: string,
-    language: IlaraLanguage,
-    options?: { localOnly?: boolean },
-  ) {
+  useEffect(() => {
+    alive.current = true;
+    const pause = (event: Event) => {
+      if ((event as CustomEvent).detail !== `yarn-${id}`) stop();
+    };
+    window.addEventListener("ileraher-audio-play", pause);
+    return () => {
+      alive.current = false;
+      window.removeEventListener("ileraher-audio-play", pause);
+      stop();
+      cache.current = null;
+    };
+  }, [id, stop]);
+  async function play(text: string, language: IlaraLanguage) {
+    if (request.current) return;
     stop();
     setError("");
-    if (!("speechSynthesis" in window)) {
-      setError("Audio playback is not supported by this browser.");
-      return;
-    }
-    const voice = window.speechSynthesis
-      .getVoices()
-      .find(
-        (x) =>
-          (!options?.localOnly || x.localService) &&
-          x.lang.toLowerCase().split("-")[0] ===
-            language.toLowerCase().split("-")[0],
-      );
-    if (!voice) {
-      setError(
-        "This device has no playback voice for the selected language. The response is shown below.",
-      );
-      return;
-    }
-    const utterance = new SpeechSynthesisUtterance(text);
-    active.current = utterance;
-    utterance.voice = voice;
-    utterance.lang = voice.lang;
-    utterance.rate = 0.95;
-    utterance.onstart = () => {
-      if (active.current === utterance) setState("playing");
-    };
-    utterance.onend = () => {
-      if (active.current === utterance) {
-        active.current = null;
-        setState("idle");
+    setState("loading");
+    const controller = new AbortController();
+    request.current = controller;
+    window.dispatchEvent(new CustomEvent("ileraher-audio-play", { detail: `yarn-${id}` }));
+    try {
+      const key = JSON.stringify([text, language]);
+      const blob = cache.current?.key === key ? cache.current.audio : await requestYarnAudio(text, language, controller.signal);
+      if (controller.signal.aborted || !alive.current) return;
+      cache.current = { key, audio: blob };
+      objectUrl.current = URL.createObjectURL(blob);
+      const audio = new Audio(objectUrl.current);
+      active.current = audio;
+      audio.onended = () => { if (active.current === audio) setState("idle"); };
+      audio.onerror = () => {
+        if (active.current === audio) { setState("idle"); setError("voiceUnavailable"); }
+      };
+      try {
+        await audio.play();
+        if (active.current === audio && alive.current) setState("playing");
+      } catch {
+        if (active.current === audio && alive.current) { setState("idle"); setError("audioPlaybackError"); }
       }
-    };
-    utterance.onerror = () => {
-      if (active.current === utterance) {
-        active.current = null;
+    } catch (e) {
+      if (!controller.signal.aborted && alive.current) {
         setState("idle");
-        setError("Audio playback failed. Try listening again.");
+        setError(e instanceof YarnAudioError ? e.key : "voiceUnavailable");
       }
-    };
-    window.speechSynthesis.speak(utterance);
+    } finally {
+      if (request.current === controller) request.current = null;
+    }
   }
   function pause() {
-    window.speechSynthesis.pause();
+    active.current?.pause();
     setState("paused");
   }
-  function resume() {
-    window.speechSynthesis.resume();
-    setState("playing");
+  async function resume() {
+    const audio = active.current;
+    if (!audio) return;
+    try {
+      await audio.play();
+      if (active.current === audio && alive.current) { setState("playing"); setError(""); }
+    } catch {
+      if (active.current === audio && alive.current) setError("audioPlaybackError");
+    }
   }
   return { state, error, play, pause, resume, stop };
 }

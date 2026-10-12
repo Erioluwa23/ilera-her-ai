@@ -29,13 +29,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "Invalid speech request" }, { status: 400 });
     }
     const language = normalizeLanguage(body.language);
-    if (process.env.VOICE_TTS_API_URL && !(process.env.VOICE_TTS_LANGUAGES || "").split(",").map(x => x.trim()).includes(language)) {
-      return Response.json({ error: "Saved reply audio is unavailable in this language" }, { status: 503 });
-    }
     const speech = await replyAudio(body.text, language, req.signal);
-    return new Response(new Uint8Array(speech.audio), { headers: { "content-type": speech.contentType, "cache-control": "private, no-store", "x-speech-model": speech.model } });
+    return new Response(new Uint8Array(speech.audio), { headers: { "content-type": speech.contentType, "cache-control": "private, no-store", "x-speech-model": speech.model, "x-speech-language": language } });
   } catch (error) {
-    if (error instanceof AsrError && error.code === "ASR_QUOTA") return Response.json({ error: "Speech compute quota is exhausted. Please try again later." }, { status: 429 });
-    return Response.json({ error: "Reply audio could not be saved. Try again later or use device playback." }, { status: 502 });
+    if (error instanceof AsrError && error.code === "ASR_QUOTA") return Response.json({ error: "YarnGPT speech compute quota is exhausted. Please try again later.", code: "TTS_QUOTA" }, { status: 429 });
+    return Response.json({ error: "YarnGPT audio is unavailable. Read the reply or try again later.", code: "TTS_UNAVAILABLE" }, { status: 502 });
   }
 }

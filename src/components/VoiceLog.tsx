@@ -6,6 +6,7 @@ import { useUI } from "@/lib/ui-language";
 import { useOnline } from "@/lib/ui-utils";
 import { useVoiceRecording } from "@/lib/use-voice-recording";
 import { contextFor, type VoiceMessage } from "@/lib/voice-chat";
+import { requestYarnAudio, YarnAudioError, YARN_TTS_MODEL } from "@/lib/yarn-audio";
 import {
   loadVoiceMessages,
   saveVoiceMessage,
@@ -185,9 +186,12 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
     document
       .querySelectorAll<HTMLAudioElement>(".ux-chat audio")
       .forEach((a) => a.pause());
-    window.speechSynthesis?.cancel();
   }
-  async function task(work: (signal: AbortSignal) => Promise<void>) {
+  function cancelTask() {
+    abort.current?.abort();
+    stopAudio();
+  }
+  async function task<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T | undefined> {
     if (lock.current || busy) return;
     if (!online) {
       setError(t("offlineHint"));
@@ -199,7 +203,7 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
     setProcessing(true);
     setError("");
     try {
-      await work(controller.signal);
+      return await work(controller.signal);
     } catch (e) {
       if (alive.current && !controller.signal.aborted)
         setError(e instanceof Error ? e.message : t("retry"));
@@ -330,34 +334,23 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
       }
     });
   }
-  async function replyAudio(message: VoiceMessage) {
-    await task(async (signal) => {
+  async function replyAudio(message: VoiceMessage): Promise<Blob | undefined> {
+    return task(async (signal) => {
       setStatus(t("processingVoice"));
       try {
-        const response = await fetch("/api/voice/audio", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            text: `${message.text} ${message.disclaimer || ""}`,
-            language: message.language,
-          }),
-          signal,
+        const audio = await requestYarnAudio(`${message.text} ${message.disclaimer || ""}`, message.language, signal);
+        if (signal.aborted) return;
+        await patch(message.id, {
+          audio,
+          audioModel: YARN_TTS_MODEL,
+          filename: `ileraher-${message.id}.wav`,
+          error: undefined,
         });
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || t("noReply"));
-        }
-        const audio = await response.blob();
-        if (!signal.aborted)
-          await patch(message.id, {
-            audio,
-            filename: `ileraher-${message.id}.${audio.type.includes("mpeg") ? "mp3" : "wav"}`,
-            error: undefined,
-          });
+        if (!signal.aborted) return audio;
       } catch (e) {
         if (!signal.aborted)
           await patch(message.id, {
-            error: e instanceof Error ? e.message : t("noReply"),
+            error: t(e instanceof YarnAudioError ? e.key : "voiceUnavailable"),
           });
       }
     });
@@ -678,7 +671,7 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
           </p>
         )}
         {processing && (
-          <button className="ux-pill" onClick={() => abort.current?.abort()}>
+          <button className="ux-pill" onClick={cancelTask}>
             {t("cancel")}
           </button>
         )}
@@ -769,7 +762,7 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
             {saved.includes(draft.id) ? t("draftSaved") : t("unsaved")}
           </small>
           {processing && (
-            <button className="ux-pill" onClick={() => abort.current?.abort()}>
+            <button className="ux-pill" onClick={cancelTask}>
               {t("cancel")}
             </button>
           )}

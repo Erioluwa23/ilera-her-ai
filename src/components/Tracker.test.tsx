@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Tracker from "./Tracker";
 import PeriodHistory from "./PeriodHistory";
+import { YARN_TTS_MODEL } from "@/lib/yarn-audio";
 import {
   DEFAULT_PREFERENCES,
   type CyclePreferences,
@@ -47,6 +48,10 @@ beforeEach(() => {
   savedPreferences = { ...prefs };
   savedLogs = logs;
   consent = true;
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:insight") });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value: function (this: HTMLDialogElement) {
@@ -62,6 +67,9 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, options?: RequestInit) => {
+      if (url === "/api/voice/audio") return new Response(new Uint8Array([1, 2, 3]), { headers: {
+        "content-type": "audio/wav", "x-speech-model": YARN_TTS_MODEL, "x-speech-language": "en-NG",
+      } });
       if (url.endsWith("preferences") && options?.method === "PUT") {
         savedPreferences = JSON.parse(options.body as string).preferences;
         forecast = predictNextPeriod(savedLogs, savedPreferences, "2026-10-10");
@@ -86,6 +94,7 @@ afterEach(async () => {
   host.remove();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 async function mount(screen = <Tracker />) {
   await act(async () => {
@@ -247,40 +256,31 @@ describe("personalized calendar", () => {
     expect(host.querySelector(".ux-calendar-grid")).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
-  it("reads an insight on demand using a local device voice", async () => {
+  it("reads an insight with YarnGPT only on an explicit Listen action", async () => {
     const speak = vi.fn();
-    vi.stubGlobal(
-      "SpeechSynthesisUtterance",
-      function (this: { text: string }, text: string) {
-        this.text = text;
-      },
-    );
-    vi.stubGlobal("speechSynthesis", {
-      cancel: vi.fn(),
-      getVoices: () => [{ lang: "en-NG", localService: true }],
-      speak,
-      pause: vi.fn(),
-      resume: vi.fn(),
-    });
+    vi.stubGlobal("speechSynthesis", { speak });
     await mount();
-    expect(speak).not.toHaveBeenCalled();
+    expect(vi.mocked(fetch).mock.calls.filter(([url]) => url === "/api/voice/audio")).toHaveLength(0);
+    expect(host.textContent).toContain("Listen sends this insight text to the speech service");
     const button = Array.from(host.querySelectorAll("button")).find((x) =>
       x.textContent?.includes("Listen to insight"),
     )!;
     await act(async () => {
       button.click();
     });
-    expect(speak).toHaveBeenCalledTimes(1);
-    expect(speak.mock.calls[0][0].text).toContain("30 October 2026");
+    const requests = vi.mocked(fetch).mock.calls.filter(([url]) => url === "/api/voice/audio");
+    expect(requests).toHaveLength(1);
+    const body = JSON.parse(requests[0][1]!.body as string);
+    expect(body.language).toBe("en-NG"); expect(body.text).toContain("30 October 2026");
+    expect(body.text).not.toContain("startDate");
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
+    expect(speak).not.toHaveBeenCalled();
   });
-  it("does not send cycle insight to a remote device voice when no local language voice exists", async () => {
+  it("preserves the insight on speech quota failure without a device fallback", async () => {
     const speak = vi.fn();
-    vi.stubGlobal("speechSynthesis", {
-      cancel: vi.fn(),
-      getVoices: () => [{ lang: "en-NG", localService: false }],
-      speak,
-    });
+    vi.stubGlobal("speechSynthesis", { speak });
     await mount();
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("quota", { status: 429 }));
     const button = Array.from(host.querySelectorAll("button")).find((x) =>
       x.textContent?.includes("Listen to insight"),
     )!;
@@ -288,6 +288,8 @@ describe("personalized calendar", () => {
       button.click();
     });
     expect(speak).not.toHaveBeenCalled();
-    expect(host.textContent).toContain("Device voice unavailable");
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("YarnGPT's speech limit has been reached");
+    expect(host.textContent).toContain("30 October 2026");
   });
 });

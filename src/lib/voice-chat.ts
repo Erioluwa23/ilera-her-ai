@@ -9,6 +9,7 @@ export type VoiceMessage = {
   replyTo?: string;
   text?: string;
   audio?: Blob;
+  audioModel?: string;
   filename?: string;
   confirmed?: boolean;
   draft?: boolean;

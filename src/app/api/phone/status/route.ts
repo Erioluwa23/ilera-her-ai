@@ -16,12 +16,10 @@ export async function GET() {
       inspectNatlasSpace(),
     ]);
     const row = heartbeat.rows[0];
-    const externalTts = !!process.env.VOICE_TTS_API_URL;
-    const ttsLanguages = externalTts ? (process.env.VOICE_TTS_LANGUAGES || "").split(",").map(s => s.trim()) : PHONE_LANGUAGES;
-    const languages = PHONE_LANGUAGES.filter(l => row?.languages?.includes(l) && ttsLanguages.includes(l));
+    const languages = PHONE_LANGUAGES.filter(l => row?.languages?.includes(l));
     const ready = !!row?.gateway_ready && runtime.reachable === true && runtime.gatedModelsAccessible === true &&
       "modelsLoaded" in runtime && runtime.modelsLoaded === true &&
-      (externalTts || ("ttsLoaded" in runtime && runtime.ttsLoaded === true)) && languages.length > 0;
+      ("ttsLoaded" in runtime && runtime.ttsLoaded === true) && languages.length > 0;
     return phoneResponse({ ...unavailable, ready, languages: ready ? languages : [], phoneNumber: ready ? number : null });
   } catch { return phoneResponse(unavailable); }
 }

@@ -11,7 +11,6 @@ export function recordingFilename(type: string) {
         ? "voice.wav"
         : "voice.webm";
 }
-
 export function useVoiceRecording() {
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -211,24 +210,4 @@ export function useVoiceRecording() {
     seconds,
     levels,
   };
-}
-
-export function speakResponse(text: string, language: IlaraLanguage): boolean {
-  if (typeof window === "undefined" || !("speechSynthesis" in window))
-    return false;
-  const voice = window.speechSynthesis
-    .getVoices()
-    .find(
-      (v) =>
-        v.lang.toLowerCase().split("-")[0] ===
-        language.toLowerCase().split("-")[0],
-    );
-  if (!voice) return false;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.voice = voice;
-  utterance.lang = voice.lang;
-  utterance.rate = 0.95;
-  window.speechSynthesis.speak(utterance);
-  return true;
 }
