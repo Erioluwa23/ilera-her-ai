@@ -95,3 +95,10 @@ mobile autoplay, playback acknowledgment and expiration. They validate the call
 transport and model contracts; they do not establish real multilingual speech
 accuracy or pronunciation. Production inference remains subject to actual
 Hugging Face quota and service availability.
+
+Production release `27a913e742eb3cb32749525dd13a28e6be4aad79` is deployed on the
+original Render service; CI `38267825357` passed, including the Python gateway and
+cross-runtime bridge. Authenticated call startup/hang-up succeeded on 12 October
+2026. The actual synthetic English recording returned `ASR_QUOTA` with retry time
+**12 October, 17:33:29 WAT**. That verifies production quota transport, not a
+successful spoken reply. Live speech acceptance remains pending provider quota.

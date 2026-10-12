@@ -48,7 +48,45 @@ accessible labeled controls, mobile layout and reduced-motion support.
 See `docs/APP_VOICE_CALLS.md` for transport, consent, configuration and acceptance
 details. These checks use controlled media/model fixtures and do not claim live
 multilingual pronunciation or successful synthesis while provider quota blocks
-inference. Deployment/live acceptance evidence follows after publication.
+inference.
+
+Verified release: commit `27a913e742eb3cb32749525dd13a28e6be4aad79`, tree
+`a53b2f73da4cd6acfb9c279225d9af156bc45e92`. CI run `38267825357` passed all
+steps, including the PostgreSQL/TypeScript-Python bridge, Python gateway suite,
+production build and model-runtime contracts. Render deployment
+`dep-db6ff1ss728c738b5la0` is live on the original service, finished
+`2026-10-12T15:08:25.462105Z` (16:08:25 WAT).
+
+Production verification used a separate synthetic test account and a synthetic
+English caller recording, not a real user's health data. App call startup returned
+HTTP 200 without PIN enrollment or gateway activation; hang-up returned HTTP 200,
+and optional saved replies remained empty. The actual call turn at
+`2026-10-12T15:11:15Z` returned HTTP 429, `ASR_QUOTA`, private/no-store and:
+
+```json
+{
+  "error": "Quota exhausted. Try again at 12 Oct, 5:33:29 PM WAT.",
+  "retryAt": "2026-10-12T16:33:29.239Z",
+  "retryAfterSeconds": 4934
+}
+```
+
+The exact provider deadline therefore reaches the new call API and its existing
+translated UI formatter. This call did not produce a successful transcription,
+generated answer or spoken reply; live spoken acceptance remains pending compute
+availability. No quota workaround, substitute voice or paid upgrade was enabled.
+
+Authenticated production `/call` returned HTTP 200 with Start call, internet
+guidance and Powered by N-ATLaS, and no sandbox text in its visible HTML. Published
+bundle `/_next/static/chunks/1ipdss7mqy87w.js` returned HTTP 200 with the call API
+and YarnGPT model contract and no browser speech synthesis. Health at
+`2026-10-12T15:13:09Z` returned HTTP 200, advertised `/call` as browser audio with
+internet required, retained `saheedniyi/YarnGPT2b`, and listed all four ASR
+languages. Unsigned call starts return HTTP 401; cross-origin starts return 403.
+Render error logs since the live deployment were empty. These are API, rendered
+HTML and published-asset checks, not a claim of successful live microphone/audio
+playback in an authenticated browser. This evidence follow-up is documentation
+only; auto-deploy stays off.
 
 ## 2026-10-12 — N-ATLaS product attribution
 
