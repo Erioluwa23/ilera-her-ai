@@ -28,7 +28,35 @@ skipped locally), production build/TypeScript passed, and git diff --check passe
 94 focused tests cover actual metadata propagation through four-language YarnGPT
 failures and queued ASR errors, separate run resets, invalid/past/missing reset
 data, API permissions, credential containment and the original countdown path.
-Deployment and live quota metadata/access verification are pending.
+Verified release: commit `40e423255b5c20720da983f2f5ad351ad44d097f`, tree
+`77c068906ccf47307fef48cc97dd92178f072d3c`. CI run `38256895166` passed.
+Render deployment `dep-db6e4ve7bikc73chu2mg` is live on the original service,
+finished `2026-10-12T13:38:29.28608Z` (14:38:29 WAT).
+
+The production English speech request at `2026-10-12T13:39:43Z` returned:
+
+```json
+{
+  "code": "TTS_QUOTA",
+  "error": "Quota exhausted. Try again at 12 Oct, 5:33:29 PM WAT.",
+  "retryAt": "2026-10-12T16:33:29.229Z",
+  "retryAfterSeconds": 10426
+}
+```
+
+It also returned HTTP 429, `Retry-After: 10426` and private/no-store caching.
+The actual transcription endpoint at `13:40:37Z` returned `ASR_QUOTA` with the
+same displayed reset time, `retryAt=2026-10-12T16:33:29.001Z` and
+`Retry-After: 10372`. That check used a 0.5-second synthetic silent WAV only to
+verify quota transport. The existing frontend consumes `retryAt` for the chat,
+transcription and cycle-insight notices, formatting it in WAT for all four
+interface languages; this contract and React error rendering passed the suite.
+
+The current reported retry time is therefore **12 October 2026, 17:33:29 WAT**.
+Fresh inference remains quota-blocked; these responses verify retry-time
+propagation, not successful synthesis or pronunciation. No credential values,
+permissions, model weights or hardware were changed. This release-evidence
+follow-up is documentation only; auto-deploy stays off.
 
 ## 2026-10-12 — provider quota retry time in speech errors
 
