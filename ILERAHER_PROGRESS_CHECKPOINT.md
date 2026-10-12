@@ -32,8 +32,31 @@ and do not establish pronunciation quality or real-device audio acceptance.
 Before deployment, live health reported the owned Space RUNNING with both text
 and TTS models loaded. A non-sensitive English synthesis test returned HTTP 429
 with exhausted speech compute quota. Model loading does not prove available GPU
-quota; fresh production speech remains blocked until quota is available. Final
-deployment/CI and post-deploy checks will be recorded after verification.
+quota; fresh production speech remains blocked until quota is available.
+
+Verified release: application commit `8eb46c8bdd671b5a748c652b74b051073c7f3117`,
+tree `376160c30480ccef731861be6b55b0c529076e31`; Render
+`dep-db68u9ijnfac73csicv0` is live on the original service, finished
+`2026-10-12T07:42:58.976038Z`. CI run `38219087916` passed all steps, including
+JavaScript/PostgreSQL/bridge checks, SIM-service Python tests, the production build
+and runtime boundary tests. Auto-deploy remains off; no duplicate deploy started.
+
+Post-deploy health returned HTTP 200 with the owned runtime RUNNING and YarnGPT
+loaded (`ttsStage=ready`). Four short, non-sensitive greetings sent to the actual
+production speech API each returned HTTP 429 with the new `TTS_QUOTA` code:
+
+| Language | UI code | Actual result | Latency |
+|---|---|---|---|
+| English | en-NG | 429 / TTS_QUOTA | 9.22 s |
+| Yoruba | yo | 429 / TTS_QUOTA | 8.96 s |
+| Igbo | ig | 429 / TTS_QUOTA | 9.10 s |
+| Hausa | ha | 429 / TTS_QUOTA | 9.12 s |
+
+There were no error-level application logs in the inspected release interval.
+These live checks confirm deployed error handling, not successful synthesis or
+pronunciation quality. Real spoken-output acceptance remains quota-blocked.
+This release-evidence follow-up changes documentation only; application code
+remains the verified live revision above.
 
 ## 2026-10-05 — spoken replies implementation
 
