@@ -1,6 +1,6 @@
 export const MAX_AUDIO_BYTES=25*1024*1024;
 export class AsrError extends Error{
-  constructor(public code:string,public status:number,message:string){super(message)}
+  constructor(public code:string,public status:number,message:string,public readonly retryAt?:string){super(message)}
 }
 
 const AUDIO_TYPES=new Set(["audio/wav","audio/x-wav","audio/wave","audio/mpeg","audio/mp3","audio/ogg","audio/webm","video/webm","audio/mp4","audio/x-m4a","audio/aac","audio/flac","audio/x-flac"]);

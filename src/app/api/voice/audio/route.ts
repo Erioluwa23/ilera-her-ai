@@ -1,6 +1,7 @@
 import { AsrError } from "@/lib/asr-contract";
 import { replyAudio } from "@/lib/reply-audio";
 import { normalizeLanguage } from "@/lib/languages";
+import { quotaResponse } from "@/lib/quota-retry";
 
 export async function POST(req: Request) {
   const origin = req.headers.get("origin");
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     const speech = await replyAudio(body.text, language, req.signal);
     return new Response(new Uint8Array(speech.audio), { headers: { "content-type": speech.contentType, "cache-control": "private, no-store", "x-speech-model": speech.model, "x-speech-language": language } });
   } catch (error) {
-    if (error instanceof AsrError && error.code === "ASR_QUOTA") return Response.json({ error: "YarnGPT speech compute quota is exhausted. Please try again later.", code: "TTS_QUOTA" }, { status: 429 });
+    if (error instanceof AsrError && error.code === "ASR_QUOTA") return quotaResponse("TTS_QUOTA", error.retryAt);
     return Response.json({ error: "YarnGPT audio is unavailable. Read the reply or try again later.", code: "TTS_UNAVAILABLE" }, { status: 502 });
   }
 }

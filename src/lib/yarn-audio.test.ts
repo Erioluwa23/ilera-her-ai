@@ -30,4 +30,8 @@ describe("verified YarnGPT listening requests", () => {
     await expect(requestYarnAudio("Text", "ig")).rejects.toMatchObject({ key: "speechQuota" });
     expect(speak).not.toHaveBeenCalled();
   });
+  it("keeps the server's exact retry deadline for the listening interface", async () => {
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue(Response.json({code:"TTS_QUOTA",retryAt:"2026-10-12T09:13:27.000Z"},{status:429})));
+    await expect(requestYarnAudio("Text","yo")).rejects.toMatchObject({key:"speechQuota",retryAt:"2026-10-12T09:13:27.000Z"});
+  });
 });

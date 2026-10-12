@@ -281,6 +281,14 @@ describe("YarnGPT is the chat speaker", () => {
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
     expect(speak).not.toHaveBeenCalled();
   });
+  it("shows Hugging Face's retry date and time in WAT on a failed listening request", async () => {
+    mocks.load.mockResolvedValue([assistant("yo")]);
+    vi.mocked(fetch).mockResolvedValue(Response.json({code:"TTS_QUOTA",retryAt:"2026-10-12T23:30:00.000Z"},{status:429}));
+    await mount(); await click("Listen to reply");
+    expect(host.textContent).toContain("Quota exhausted. Try again at 13 Oct, 12:30:00 AM WAT.");
+    expect(host.textContent).toContain("Synthetic reply");
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
   it("discards a cancelled generation even if the network later returns audio", async () => {
     mocks.load.mockResolvedValue([assistant()]);
     let complete!: (response: Response) => void;

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import type { PeriodStore } from "@/lib/period-store";
-import { useUI, type UIKey } from "@/lib/ui-language";
+import { quotaNotice, useUI, type UIKey } from "@/lib/ui-language";
 import { displayDate, todayDate } from "@/lib/ui-utils";
 import { daysBetween } from "@/lib/cycle-prediction/engine";
 import { cycleContextKeys } from "@/lib/cycle-prediction/ui-rows";
@@ -168,7 +168,7 @@ export default function CyclePredictionPanel({
           <p className="ux-small">{t("yarnInsightProcessing")}</p>
           {voice.error && (
             <p role="status" className="ux-small">
-              {t(voice.error)}
+              {voice.error === "speechQuota" ? quotaNotice(voice.retryAt, t) : t(voice.error)}
             </p>
           )}
           {store.preferences.reminderConsent &&

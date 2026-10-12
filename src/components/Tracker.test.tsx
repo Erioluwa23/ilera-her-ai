@@ -280,7 +280,7 @@ describe("personalized calendar", () => {
     const speak = vi.fn();
     vi.stubGlobal("speechSynthesis", { speak });
     await mount();
-    vi.mocked(fetch).mockResolvedValueOnce(new Response("quota", { status: 429 }));
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json({code:"TTS_QUOTA",retryAt:"2026-10-12T15:45:30.000Z"},{status:429}));
     const button = Array.from(host.querySelectorAll("button")).find((x) =>
       x.textContent?.includes("Listen to insight"),
     )!;
@@ -289,7 +289,7 @@ describe("personalized calendar", () => {
     });
     expect(speak).not.toHaveBeenCalled();
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
-    expect(host.textContent).toContain("YarnGPT's speech limit has been reached");
+    expect(host.textContent).toContain("Quota exhausted. Try again at 12 Oct, 4:45:30 PM WAT.");
     expect(host.textContent).toContain("30 October 2026");
   });
 });

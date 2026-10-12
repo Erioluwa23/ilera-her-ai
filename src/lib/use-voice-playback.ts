@@ -4,7 +4,8 @@ import type { IlaraLanguage } from "./languages";
 import { requestYarnAudio, YarnAudioError, type SpeechErrorKey } from "./yarn-audio";
 export function useVoicePlayback() {
   const [state, setState] = useState<"idle" | "loading" | "playing" | "paused">("idle"),
-    [error, setError] = useState<SpeechErrorKey | "audioPlaybackError" | "">("");
+    [error, setError] = useState<SpeechErrorKey | "audioPlaybackError" | "">(""),
+    [retryAt, setRetryAt] = useState<string>();
   const id = useId();
   const active = useRef<HTMLAudioElement | null>(null),
     request = useRef<AbortController | null>(null),
@@ -19,7 +20,7 @@ export function useVoicePlayback() {
     audio?.pause();
     if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
     objectUrl.current = null;
-    if (alive.current) { setState("idle"); setError(""); }
+    if (alive.current) { setState("idle"); setError(""); setRetryAt(undefined); }
   }, []);
   useEffect(() => {
     alive.current = true;
@@ -64,6 +65,7 @@ export function useVoicePlayback() {
       if (!controller.signal.aborted && alive.current) {
         setState("idle");
         setError(e instanceof YarnAudioError ? e.key : "voiceUnavailable");
+        setRetryAt(e instanceof YarnAudioError ? e.retryAt : undefined);
       }
     } finally {
       if (request.current === controller) request.current = null;
@@ -83,5 +85,5 @@ export function useVoicePlayback() {
       if (active.current === audio && alive.current) setError("audioPlaybackError");
     }
   }
-  return { state, error, play, pause, resume, stop };
+  return { state, error, retryAt, play, pause, resume, stop };
 }

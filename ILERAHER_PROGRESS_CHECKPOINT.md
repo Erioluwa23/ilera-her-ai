@@ -1,3 +1,34 @@
+## 2026-10-12 — provider quota retry time in speech errors
+
+User requested the actual quota renewal time in the error message. The installed
+Gradio client preserves Hugging Face's error text, but our classifier discarded
+its `Try again in H:MM:SS` detail. The existing Python runtime already rethrows
+Gradio quota errors, so no model-runtime or hardware change is required.
+
+The application extracts only the provider's positive timedelta (including day
+counts/fractional seconds) and converts it to an absolute UTC deadline when the
+error is received. It never forwards upstream HTML, links or credential text.
+TTS and both transcription API routes now return `retryAt`,
+`retryAfterSeconds`, `Retry-After`, HTTP 429 and private/no-store when known.
+English, Yoruba, Hausa and Igbo interfaces format the deadline in Africa/Lagos
+time as `Quota exhausted. Try again at [date/time] WAT.` Cycle insights use the
+same deadline. Missing, zero or malformed provider delays retain a generic retry
+message; no midnight or guessed renewal time is substituted. This is a provider
+retry estimate, not a guarantee that later inference will succeed.
+
+Hugging Face's current quota guide describes a 24-hour window starting with the
+first use, rather than a calendar-day midnight reset:
+https://github.com/huggingface/skills/blob/main/skills/huggingface-zerogpu/references/how-quota-works.md
+The displayed deadline uses the request's actual provider delay rather than
+deriving a deadline from that general policy.
+
+Local verification: 383 JavaScript tests passed (1 existing Python bridge check
+skipped locally), production build/TypeScript passed, git diff --check passed.
+106 focused tests include date rollover in WAT, all four interface languages,
+provider-error propagation, both transcription aliases, TTS retry headers,
+unknown delays and preservation of the reply/insight without device speech.
+Deployment and the current live retry time will be recorded after release.
+
 ## 2026-10-12 — YarnGPT is the application speaker
 
 User requested YarnGPT for English, Yoruba, Igbo and Hausa, replacing robotic

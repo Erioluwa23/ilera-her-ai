@@ -2,6 +2,7 @@
 import { useLanguage } from "./use-language";
 import type { IlaraLanguage } from "./languages";
 import { cycleRows } from "./cycle-prediction/ui-rows";
+import { formatQuotaTime, validRetryAt } from "./quota-retry";
 // A single interface catalogue. Clinical answers keep their existing reviewed localization.
 const rows = {
   ...cycleRows,
@@ -28,6 +29,18 @@ const rows = {
     "Ààlà iṣẹ́ ohùn YarnGPT ti pé. Jọ̀wọ́ tún gbìyànjú nígbà míì.",
     "An kai iyakar amfani da muryar YarnGPT. A sake gwadawa daga baya.",
     "Eruola oke iji olu YarnGPT. Biko gbalịa ọzọ ma emechaa.",
+  ],
+  quotaRetryAt: [
+    "Quota exhausted. Try again at {time}.",
+    "Ààlà iṣẹ́ ti pé. Tún gbìyànjú ní {time}.",
+    "An kai iyakar amfani. Sake gwadawa da {time}.",
+    "Eruola oke ojiji. Gbalịa ọzọ na {time}.",
+  ],
+  asrQuota: [
+    "Speech quota exhausted. Please try again later.",
+    "Ààlà iṣẹ́ ohùn ti pé. Jọ̀wọ́ tún gbìyànjú nígbà míì.",
+    "An kai iyakar amfani da murya. A sake gwadawa daga baya.",
+    "Eruola oke iji olu. Biko gbalịa ọzọ ma emechaa.",
   ],
   audioPlaybackError: [
     "Tap play again, or download the audio.",
@@ -895,6 +908,10 @@ const rows = {
   ],
 } as const;
 export type UIKey = keyof typeof rows;
+export function quotaNotice(retryAt: unknown, t: (key: UIKey) => string, fallback: "speechQuota" | "asrQuota" = "speechQuota") {
+  const retry = validRetryAt(retryAt);
+  return retry ? t("quotaRetryAt").replace("{time}", formatQuotaTime(retry)) : t(fallback);
+}
 const index: Record<IlaraLanguage, number> = {
   "en-NG": 0,
   yo: 1,

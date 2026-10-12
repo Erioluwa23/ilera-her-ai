@@ -3,6 +3,7 @@ import {huggingFaceToken} from "@/lib/hf-token";
 import {AsrError,validateAudio} from "@/lib/asr-contract";
 import type {SupportedLanguage} from "@/lib/natlas";
 import {NATLAS_ASR_MODELS,speechLanguageFromUi} from "@/lib/languages";
+import {quotaRetryAt} from "@/lib/quota-retry";
 
 const verifiedLanguages=new Set<string>();
 const ILERAHER_ASR_SPACE="Kolade1/ileraHer-natlas-runtime";
@@ -29,7 +30,7 @@ export function classifyAsrError(error:unknown):AsrError{
   const detail=error && typeof error==="object" && "message" in error ? (error as {message:unknown}).message : error;
   const message=String(detail).toLowerCase();
   if(/401|403|unauthorized|forbidden|credential|gated/.test(message))return new AsrError("ASR_AUTH",503,"ASR runtime or model access is not authorized.");
-  if(/quota|429|rate limit/.test(message))return new AsrError("ASR_QUOTA",429,"ASR compute quota is exhausted. Please try later.");
+  if(/quota|429|rate limit|zerogpu runs limit|gpu limit/.test(message))return new AsrError("ASR_QUOTA",429,"ASR compute quota is exhausted. Please try later.",quotaRetryAt(detail));
   if(/building|starting|sleeping|no app|not found|404/.test(message))return new AsrError("ASR_STARTING",503,"ASR compute runtime is not ready.");
   return new AsrError("ASR_UPSTREAM",502,"ASR runtime could not complete transcription.");
 }

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LANGUAGE_OPTIONS, type IlaraLanguage } from "@/lib/languages";
-import { useUI } from "@/lib/ui-language";
+import { quotaNotice, useUI } from "@/lib/ui-language";
 import { useOnline } from "@/lib/ui-utils";
 import { useVoiceRecording } from "@/lib/use-voice-recording";
 import { contextFor, type VoiceMessage } from "@/lib/voice-chat";
@@ -268,7 +268,7 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
         });
         const data = await response.json();
         if (!response.ok || !data.text?.trim())
-          throw new Error(data.error || t("noSpeech"));
+          throw new Error(data.code === "ASR_QUOTA" ? quotaNotice(data.retryAt, t, "asrQuota") : data.error || t("noSpeech"));
         await patch(message.id, { text: data.text, error: undefined });
         if (alive.current && !signal.aborted) setWords(data.text);
       } catch (e) {
@@ -350,7 +350,9 @@ export default function VoiceLog({ compact = false }: { compact?: boolean }) {
       } catch (e) {
         if (!signal.aborted)
           await patch(message.id, {
-            error: t(e instanceof YarnAudioError ? e.key : "voiceUnavailable"),
+            error: e instanceof YarnAudioError && e.key === "speechQuota"
+              ? quotaNotice(e.retryAt, t)
+              : t(e instanceof YarnAudioError ? e.key : "voiceUnavailable"),
           });
       }
     });

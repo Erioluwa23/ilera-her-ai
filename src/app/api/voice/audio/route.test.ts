@@ -9,7 +9,7 @@ describe("saved reply audio", () => {
     vi.clearAllMocks();
     vi.mocked(synthesizeViaYarnSpace).mockResolvedValue(Buffer.from("RIFFtestWAVEaudio"));
   });
-  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
   it("rejects cross-site generation", async () => {
     expect((await POST(request({text:"Hello",language:"en-NG"},"https://other"))).status).toBe(403);
   });
@@ -40,6 +40,14 @@ describe("saved reply audio", () => {
     const response = await POST(request({text:"Hello",language:"ha"}));
     expect(response.status).toBe(429);
     expect((await response.json()).code).toBe("TTS_QUOTA");
+  });
+  it("exposes the provider deadline and WAT retry message for YarnGPT", async () => {
+    vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-10-12T07:49:42.000Z"));
+    vi.mocked(synthesizeViaYarnSpace).mockRejectedValueOnce(new AsrError("ASR_QUOTA",429,"Quota exhausted","2026-10-12T09:13:27.000Z"));
+    const response=await POST(request({text:"Hello",language:"en-NG"}));
+    expect(response.headers.get("retry-after")).toBe("5025");
+    expect(await response.json()).toMatchObject({code:"TTS_QUOTA",retryAt:"2026-10-12T09:13:27.000Z",
+      error:"Quota exhausted. Try again at 12 Oct, 10:13:27 AM WAT."});
   });
   it("reports model failures without secrets or advice to use device speech", async () => {
     vi.mocked(synthesizeViaYarnSpace).mockRejectedValueOnce(new Error("hf_private-upstream-error"));

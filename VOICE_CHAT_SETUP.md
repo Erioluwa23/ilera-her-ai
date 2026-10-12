@@ -45,6 +45,12 @@ override. Quota failures return HTTP 429 and a translated retry notice; other
 speech failures preserve the text reply. Never replace an unavailable YarnGPT
 voice with a different speaker. ASR and answer-generation providers are unchanged.
 
+When Hugging Face includes a retry delay in the quota error, the API preserves
+it as an absolute `retryAt` UTC timestamp plus `retryAfterSeconds` and the
+`Retry-After` header. Chat, transcription and cycle-insight error notices display
+the supplied deadline in Nigeria time (WAT), with a date to disambiguate the next
+day. A missing/zero/invalid provider delay never becomes an invented reset time.
+
 Cycle insights also use YarnGPT on an explicit Listen action. The interface states
 that listening sends the displayed summary text to the speech service. It does not
 send full period records or use an LLM. Insight audio is cached only in memory.
