@@ -27,7 +27,33 @@ skipped locally), production build/TypeScript passed, git diff --check passed.
 106 focused tests include date rollover in WAT, all four interface languages,
 provider-error propagation, both transcription aliases, TTS retry headers,
 unknown delays and preservation of the reply/insight without device speech.
-Deployment and the current live retry time will be recorded after release.
+CI run `38221506979` passed for quota implementation commit
+`e36ba170dcd0257282e9384a0c35899834f438f7`. Its first Render deployment
+`dep-db69a3jbc2fs73ba42ig` failed after the port scan timed out; the existing
+YarnGPT release stayed live. The new process had logged readiness on port 10000,
+so the logs do not establish why Render could not detect its listener.
+
+Production startup now explicitly binds `0.0.0.0`, as required by Render, while
+retaining the platform's `PORT` setting. A local smoke check confirmed an IPv4
+wildcard listener on the supplied port and HTTP 200 from the production app.
+Binding commit `6893eb3a2f9e0ce881490d7081a1e21982708fbd` passed CI run
+`38223793372`. A fresh deployment with its build cache cleared,
+`dep-db69kjflk1mc73ceiht0`, is live on the original service at that commit. It
+finished `2026-10-12T08:31:11.953789Z` (09:31:11 WAT).
+
+Live `/api/voice/audio` returned HTTP 429 at `2026-10-12T08:32:09Z` with
+`TTS_QUOTA` and `Quota exhausted. Please try again later.` The transcription
+endpoint returned the matching `ASR_QUOTA` response at `08:32:58Z`, using a
+0.5-second synthetic silent WAV to verify quota transport only. Both responses
+had private/no-store caching and no `retryAt` or `Retry-After`. Therefore no exact
+current renewal time is confirmed; a positive, supported provider countdown is
+needed before the application can display one. No reset time was guessed.
+
+Live health returned HTTP 200 at `08:32:19Z`: owned Space RUNNING, reachable,
+ASR models loaded, N-ATLaS loaded and YarnGPT loaded (`ttsStage=ready`). Fresh
+synthesis and real transcription acceptance remain quota-blocked. This release
+evidence follow-up is documentation only; auto-deploy remains off and the
+verified application revision above stays deployed.
 
 ## 2026-10-12 — YarnGPT is the application speaker
 
