@@ -73,6 +73,17 @@ Saved chat WAV files can replay offline; generating new speech needs connectivit
 and available Hugging Face compute quota. Responses are private/no-store and audio
 is capped at 4 MiB. No extra paid infrastructure is configured.
 
+## In-app calls
+
+The **Call ÌleraHer AI** action now opens `/call`. This is an internet voice call
+using the same N-ATLaS ASR/LLM and YarnGPT speech service, with automatic short-turn
+recording and playback, mute, hang-up, and quota retry times. It uses the signed-in
+account without an extra calling PIN. The free route does not connect ordinary
+SIM calls. The current Africa's Talking voice sandbox is not operational; see
+[in-app call architecture and checks](docs/APP_VOICE_CALLS.md) for the provider
+decision, API, privacy and configuration details. No sandbox label appears in the
+interface.
+
 ## Verification
 
 Run `npm test` and `npm run build`. The automated tests cover branch isolation, bounded context, urgent follow-ups, rejection of system-role injection and speech-output configuration/security. Browser checks use synthetic microphone audio and mocked ASR, answer and TTS responses to test the chat experience independently of the current inference outage. They do not establish real multilingual inference accuracy.

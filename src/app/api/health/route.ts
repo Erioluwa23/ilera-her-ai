@@ -25,7 +25,8 @@ export async function GET() {
         modelVersion: MODEL_VERSION,
         storageReady: await cycleReady,
       },
-      channels: { web: true, lowBandwidth: "/lite", ivr: "/api/ivr/incoming" },
+      channels: { web: true, lowBandwidth: "/lite", ivr: "/api/ivr/incoming",
+        voiceCall: { path: "/call", transport: "browser-audio", internetRequired: true } },
       natlas: {
         huggingFaceTokenConfigured: Boolean(huggingFaceToken()),
         asrConfigured: true,

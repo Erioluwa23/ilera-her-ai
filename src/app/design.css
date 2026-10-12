@@ -2025,3 +2025,39 @@ a {
 }
 .ux-phone-checkbox { display: flex; align-items: center; gap: .75rem; }
 .ux-phone-checkbox input { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; }
+
+/* In-app voice calling */
+.ux-call-screen { max-width: 680px; margin: 0 auto; padding: 20px 12px 32px; }
+.ux-call-screen > .ux-text-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 18px; }
+.ux-call-panel { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 20px; border: 1px solid var(--line); border-radius: 32px; background: linear-gradient(160deg, #fff 20%, var(--lilac) 180%); text-align: center; }
+.ux-call-panel .ux-badge { display: inline-flex; gap: 7px; align-items: center; }
+.ux-call-panel h1 { margin: 2px 0 0; font-size: clamp(1.6rem, 6vw, 2rem); }
+.ux-call-panel p { margin: 0; }
+.ux-call-orbit { width: 152px; height: 152px; display: grid; place-items: center; border-radius: 50%; background: #fff9; border: 1px solid var(--line); margin: 14px 0 8px; box-shadow: 0 0 0 calc(8px + var(--call-level, 0) * 18px) #a38dbb18; transition: box-shadow 120ms ease; }
+.ux-call-orbit.is-thinking, .ux-call-orbit.is-connecting, .ux-call-orbit.is-speaking { animation: ux-call-pulse 1.8s ease-in-out infinite; }
+.ux-call-status { color: var(--primary); font-weight: 600; font-size: 1.15rem; }
+.ux-call-time { font-variant-numeric: tabular-nums; color: var(--muted); }
+.ux-call-language { display: flex; flex-direction: column; gap: 7px; align-items: center; font-size: .85rem; color: var(--muted); }
+.ux-call-language select { min-height: 44px; padding: 8px 15px; border-radius: 14px; border: 1px solid var(--line); background: #fff; color: var(--primary); font: inherit; }
+.ux-call-consent { display: flex; align-items: flex-start; gap: 10px; text-align: left; max-width: 390px; margin: 6px 0; font-size: .9rem; }
+.ux-call-consent input { width: 20px; height: 20px; flex: 0 0 20px; margin: 2px 0; accent-color: var(--primary); }
+.ux-call-start { min-width: 180px; min-height: 54px; }
+.ux-call-controls { display: flex; gap: 18px; justify-content: center; margin: 8px 0; }
+.ux-call-control { min-width: 102px; min-height: 80px; padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); border-radius: 24px; background: #fff; color: var(--primary); font: inherit; font-size: .85rem; cursor: pointer; }
+.ux-call-control[aria-pressed="true"] { background: var(--lilac); border-color: var(--primary); }
+.ux-call-end { color: #fff; background: #a33f58; border-color: #a33f58; }
+.ux-call-end svg { transform: rotate(130deg); }
+.ux-call-panel button:disabled { opacity: .5; cursor: not-allowed; }
+.ux-call-panel button:focus-visible, .ux-call-panel select:focus-visible, .ux-call-panel input:focus-visible { outline: 3px solid var(--purple); outline-offset: 3px; }
+.ux-call-hint { max-width: 420px; font-size: .9rem; line-height: 1.55; margin-top: 8px !important; }
+.ux-call-panel small { color: var(--primary); font-size: .8rem; }
+.ux-call-error { padding: 14px; border-radius: 16px; color: var(--amber); background: var(--peach); text-align: left; width: 100%; }
+.ux-call-transcript, .ux-call-privacy { margin-top: 18px; border: 1px solid var(--line); border-radius: 22px; padding: 18px; background: #fff; }
+.ux-call-transcript p { white-space: pre-line; }
+.ux-call-question { color: var(--primary); padding: 12px; border-radius: 14px; background: var(--lilac); }
+.ux-call-transcript summary, .ux-call-privacy summary { cursor: pointer; color: var(--primary); }
+.ux-call-privacy summary svg { vertical-align: middle; margin-right: 6px; }
+.ux-call-privacy p { font-size: .9rem; line-height: 1.6; }
+.ux-call-transcript li { margin: 8px 0; }
+@keyframes ux-call-pulse { 50% { box-shadow: 0 0 0 18px #a38dbb18; } }
+@media (prefers-reduced-motion: reduce) { .ux-call-orbit { animation: none !important; transition: none; } }

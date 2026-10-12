@@ -2,10 +2,12 @@
 import { useLanguage } from "./use-language";
 import type { IlaraLanguage } from "./languages";
 import { cycleRows } from "./cycle-prediction/ui-rows";
+import { callRows } from "./call-ui-rows";
 import { formatQuotaTime, validRetryAt } from "./quota-retry";
 // A single interface catalogue. Clinical answers keep their existing reviewed localization.
 const rows = {
   ...cycleRows,
+  ...callRows,
   listenReply: [
     "Listen to reply",
     "Gbọ́ ìdáhùn",

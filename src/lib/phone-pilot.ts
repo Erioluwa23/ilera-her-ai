@@ -61,8 +61,10 @@ export async function phoneJson(req: Request): Promise<Record<string, unknown>> 
     return body;
   } catch (e) { if (e instanceof PhoneError) throw e; throw new PhoneError(400, "Invalid request."); }
 }
-export function phoneResponse(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: { "cache-control": "private, no-store" } });
+export function phoneResponse(body: unknown, status = 200, extraHeaders?: HeadersInit) {
+  const headers = new Headers(extraHeaders);
+  headers.set("cache-control", "private, no-store");
+  return Response.json(body, { status, headers });
 }
 export function phoneFailure(error: unknown) {
   return phoneResponse({ error: error instanceof PhoneError ? error.message : "Phone service is temporarily unavailable." }, error instanceof PhoneError ? error.status : 503);
@@ -102,6 +104,8 @@ export function ensurePhoneSchema() {
         closed BOOLEAN NOT NULL DEFAULT false, expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+      ALTER TABLE phone_sessions ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'sim'
+        CHECK (channel IN ('sim','app'));
       CREATE TABLE IF NOT EXISTS phone_replies (
         id UUID PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         payload_enc TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -185,18 +189,46 @@ export async function authenticatePhone(body: Record<string, unknown>) {
     return { grant, callId: body.callId, language: body.language, expiresAt: expiresAt.toISOString(), maxTurns: MAX_CALL_TURNS };
   } catch (e) { await client.query("ROLLBACK"); throw e; } finally { client.release(); }
 }
-export type PhoneSession = { id: string; user_id: string; language: IlaraLanguage; context_enc: string | null; turns: number; turn_id: string | null; reply_enc: string | null; played: boolean };
+// An app call is authenticated by the existing signed-in session. A SIM call
+// still requires enrollment, caller identity and the six-digit calling PIN.
+export async function startAppPhoneCall(userId: string, language: unknown, consented: unknown) {
+  if (!PHONE_LANGUAGES.includes(language as IlaraLanguage) || consented !== true)
+    throw new PhoneError(400, "Choose a language and agree to voice processing.");
+  integrationKey();
+  await cleanPhoneData();
+  const client = await getDb().connect();
+  try {
+    await client.query("BEGIN");
+    const user = await client.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [userId]);
+    if (!user.rows[0]) throw new PhoneError(401, "Please sign in first.");
+    // Replacing a call clears its temporary context and rejects late replies.
+    await client.query("UPDATE phone_sessions SET closed=true,context_enc=NULL,reply_enc=NULL,processing_until=NULL WHERE user_id=$1 AND channel='app' AND NOT closed", [userId]);
+    const callId = randomUUID(), grant = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Date.now() + CALL_LIFETIME_SECONDS * 1000);
+    await client.query("INSERT INTO phone_sessions(id,user_id,grant_hash,language,expires_at,channel) VALUES($1,$2,$3,$4,$5,'app')", [callId, userId, tokenHash(grant), language, expiresAt]);
+    await client.query("COMMIT");
+    return { callId, grant, language: language as IlaraLanguage, expiresAt: expiresAt.toISOString(), maxTurns: MAX_CALL_TURNS };
+  } catch (e) { await client.query("ROLLBACK"); throw e; } finally { client.release(); }
+}
+export type PhoneSession = { id: string; user_id: string; language: IlaraLanguage; channel: "sim" | "app"; context_enc: string | null; turns: number; turn_id: string | null; reply_enc: string | null; played: boolean };
 export async function getPhoneSession(callId: unknown, grant: unknown): Promise<PhoneSession> {
   if (!validCallId(callId) || typeof grant !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(grant)) throw new PhoneError(401, "Call is not authenticated.");
   await ensurePhoneSchema();
-  const result = await getDb().query(`SELECT s.* FROM phone_sessions s JOIN phone_accounts a ON a.user_id=s.user_id
-    WHERE s.id=$1 AND s.grant_hash=$2 AND s.expires_at>now() AND NOT s.closed`, [callId, tokenHash(grant)]);
+  const result = await getDb().query(`SELECT s.* FROM phone_sessions s
+    WHERE s.id=$1 AND s.grant_hash=$2 AND s.expires_at>now() AND NOT s.closed
+    AND (s.channel='app' OR EXISTS(SELECT 1 FROM phone_accounts a WHERE a.user_id=s.user_id))`, [callId, tokenHash(grant)]);
   if (!result.rows[0]) throw new PhoneError(401, "Call has ended or calling access has changed.");
   return result.rows[0];
 }
+export async function getAppPhoneSession(userId: string, callId: unknown, grant: unknown) {
+  const session = await getPhoneSession(callId, grant);
+  if (String(session.user_id) !== userId || session.channel !== "app")
+    throw new PhoneError(401, "Call is not authenticated.");
+  return session;
+}
 export async function beginPhoneTurn(session: PhoneSession, turnId: string) {
   // No automatic replay of a turn: retrying network requests cannot duplicate inference or saved replies.
-  const result = await getDb().query(`UPDATE phone_sessions SET processing_until=now()+interval '3 minutes',turn_id=$2,reply_enc=NULL,played=false
+  const result = await getDb().query(`UPDATE phone_sessions SET processing_until=now()+CASE WHEN channel='app' THEN interval '4 minutes' ELSE interval '3 minutes' END,turn_id=$2,reply_enc=NULL,played=false
     WHERE id=$1 AND expires_at>now() AND NOT closed AND turns<$3 AND (turn_id IS NULL OR turn_id<>$2)
     AND (processing_until IS NULL OR processing_until<now()) RETURNING id`, [session.id, turnId, MAX_CALL_TURNS]);
   if (!result.rows[0]) throw new PhoneError(409, "Call turn is busy, repeated, or the question limit was reached.");
@@ -208,7 +240,8 @@ export async function finishPhoneTurn(session: PhoneSession, turnId: string, que
   const conversation = session.context_enc ? openPhone<ConversationTurn[]>(session.context_enc) : [];
   const next = [...conversation, { role: "user", content: question.slice(0, 800) }, { role: "assistant", content: String(reply.answer).slice(0, 800) }].slice(-8);
   const result = await getDb().query(`UPDATE phone_sessions SET context_enc=$3,reply_enc=$4,turns=turns+1,processing_until=NULL
-    WHERE id=$1 AND turn_id=$2 AND NOT closed AND expires_at>now() AND EXISTS(SELECT 1 FROM phone_accounts a WHERE a.user_id=phone_sessions.user_id) RETURNING id`,
+    WHERE id=$1 AND turn_id=$2 AND NOT closed AND expires_at>now()
+    AND (channel='app' OR EXISTS(SELECT 1 FROM phone_accounts a WHERE a.user_id=phone_sessions.user_id)) RETURNING id`,
   [session.id, turnId, sealPhone(next), sealPhone({ question, ...reply })]);
   if (!result.rows[0]) throw new PhoneError(401, "Call access expired before the reply was ready.");
 }
@@ -239,7 +272,7 @@ export async function phoneEvent(body: Record<string, unknown>) {
       if (!row.played || !Number.isInteger(body.rating) || Number(body.rating) < 1 || Number(body.rating) > 5)
         throw new PhoneError(400, "Rate a completed reply from 1 to 5.");
       if (!row.feedback_id) {
-        const saved = await client.query("INSERT INTO feedback(user_id,rating,category,message) VALUES($1,$2,'voice','SIM phone call rating') RETURNING id", [session.user_id, body.rating]);
+        const saved = await client.query("INSERT INTO feedback(user_id,rating,category,message) VALUES($1,$2,'voice',$3) RETURNING id", [session.user_id, body.rating, session.channel === "app" ? "App voice call rating" : "SIM phone call rating"]);
         await client.query("UPDATE phone_sessions SET feedback_id=$2 WHERE id=$1", [session.id, saved.rows[0].id]);
       }
     } else if (body.event === "end") {

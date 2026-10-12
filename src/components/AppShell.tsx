@@ -28,7 +28,7 @@ const items: { href: string; icon: IconName; label: UIKey; match: string[] }[] =
       href: "/help",
       icon: "help",
       label: "help",
-      match: ["/help", "/feedback", "/settings"],
+      match: ["/help", "/feedback", "/settings", "/call"],
     },
   ];
 export default function AppShell({ children }: { children: ReactNode }) {

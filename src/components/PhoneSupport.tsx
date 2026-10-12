@@ -14,20 +14,15 @@ export default function PhoneSupport() {
         <Icon name="phone" />
         <h2>{t("phone")}</h2>
       </div>
-      <p>{t("phoneDialHint")}</p>
-      <span className="ux-badge">{t("phoneDedicatedNumber")}</span>
-      <p>
-        <strong dir="ltr">{PHONE_SUPPORT_DISPLAY}</strong>
-      </p>
+      <p>{t("callInternetHint")}</p>
       <p className="ux-phone-actions">
-        <a
+        <Link
           className="ux-btn"
-          href={"tel:" + PHONE_SUPPORT_NUMBER}
-          aria-label={t("phoneCall") + ": " + PHONE_SUPPORT_DISPLAY}
+          href="/call"
         >
           <Icon name="phone" />
           {t("phoneCall")}
-        </a>
+        </Link>
         <Link className="ux-btn ux-secondary" href="/settings/phone">
           <Icon name="lock" />
           {t("phoneSetup")}
@@ -35,9 +30,8 @@ export default function PhoneSupport() {
       </p>
       <details>
         <summary>{t("more")}</summary>
-        <p>
-          {t("healthInfo")}. {t("callCharges")}
-        </p>
+        <p>{t("healthInfo")}</p>
+        <p>{t("callContact")}: <a href={"tel:" + PHONE_SUPPORT_NUMBER} dir="ltr">{PHONE_SUPPORT_DISPLAY}</a></p>
       </details>
     </article>
   );

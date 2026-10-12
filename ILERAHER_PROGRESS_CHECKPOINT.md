@@ -1,3 +1,55 @@
+## 2026-10-12 — free in-app calling
+
+User authorized a free calling experience that receives spoken replies and asked
+for no "sandbox" wording in the interface. Current official Africa's Talking
+voice documentation explicitly says its voice sandbox is not operational:
+https://help.africastalking.com/en/articles/11532610-voice-sandbox
+The earlier recommendation relied on the older general sandbox guide and was
+corrected before activation. No Africa's Talking account, live number, paid
+service or hardware was provisioned.
+
+Implemented `/call` using the existing application and speech backend. Help and
+calling settings now open the in-app voice call; the original dedicated number
+remains under contact information. The UI explicitly describes internet use and
+shows **Powered by N-ATLaS**, with no sandbox label. The signed-in account starts
+an owner-bound call without an extra calling PIN. SIM calls retain their existing
+enrollment, PIN and gateway activation rules.
+
+The caller speaks for up to 30 seconds. Speech followed by silence automatically
+submits a validated mono 16 kHz WAV; an explicit answer action is also available.
+N-ATLaS ASR/LLM and the existing source-grounded guidance produce the response.
+YarnGPT2b speaks the reply, next steps and disclaimer for English, Yoruba, Hausa
+and Igbo using the existing speaker mappings. The client verifies model,
+language, turn and WAV provenance. It acknowledges playback before listening
+again; blocked mobile autoplay offers explicit playback without new inference.
+Mute, hang-up, page hiding/navigation, six turns and 15-minute expiry bound calls.
+
+App calls use an additive `phone_sessions.channel` migration, hashed grants and
+the existing encrypted phone context. Signed-in user/transport binding prevents
+cross-account or SIM-grant access. A new call replaces only that user's old app
+call. Raw recordings/WAVs are not stored by the application. Reply saving remains
+optional and requires completed-playback acknowledgment. End clears temporary
+context; a late inference response cannot commit after hang-up. Calls do not read
+period records or unrelated saved chats. Model quota errors retain actual retry
+timestamps and WAT formatting; a failed spoken reply never becomes a successful
+playback or a browser-generated substitute.
+
+Verification: 443 JavaScript checks passed (one existing Python bridge skipped
+locally), production build and TypeScript passed, and ten model-runtime contract
+checks passed. The focused call suite has 35 checks for app/API/database behavior,
+four-language routing, ownership/consent, encrypted follow-ups, invalid audio,
+quota deadlines, cancellation, automatic turn-taking, mute, autoplay and timing.
+The old SIM speech-unavailable status and stage timeouts remain compatible. The
+local Python environment has no pytest; the unchanged Python gateway suite and
+cross-runtime bridge are covered by the repository's CI workflow. React review
+confirmed effect cleanup, event-driven call initiation, bounded media memory,
+accessible labeled controls, mobile layout and reduced-motion support.
+
+See `docs/APP_VOICE_CALLS.md` for transport, consent, configuration and acceptance
+details. These checks use controlled media/model fixtures and do not claim live
+multilingual pronunciation or successful synthesis while provider quota blocks
+inference. Deployment/live acceptance evidence follows after publication.
+
 ## 2026-10-12 — N-ATLaS product attribution
 
 User requested visible N-ATLaS branding to communicate challenge alignment while

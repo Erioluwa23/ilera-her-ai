@@ -1,8 +1,8 @@
 import { PhoneError, MAX_CALL_AUDIO_BYTES } from "./phone-pilot";
 
 // Actual duration/codec validation prevents compressed or oversized uploads from entering inference.
-export function validatePhoneWav(audio: Buffer) {
-  if (audio.length < 44 || audio.length > MAX_CALL_AUDIO_BYTES || audio.toString("ascii", 0, 4) !== "RIFF" || audio.toString("ascii", 8, 12) !== "WAVE" || audio.readUInt32LE(4) + 8 !== audio.length)
+export function validatePhoneWav(audio: Buffer, maximumBytes = MAX_CALL_AUDIO_BYTES) {
+  if (audio.length < 44 || audio.length > maximumBytes || audio.toString("ascii", 0, 4) !== "RIFF" || audio.toString("ascii", 8, 12) !== "WAVE" || audio.readUInt32LE(4) + 8 !== audio.length)
     throw new PhoneError(400, "Upload a valid phone WAV recording.");
   let offset = 12, rate = 0, block = 0, dataBytes = 0, haveFormat = false, haveData = false;
   while (offset + 8 <= audio.length) {

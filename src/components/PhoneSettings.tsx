@@ -6,6 +6,7 @@ import {
   PHONE_SUPPORT_DISPLAY,
 } from "@/lib/phone-contact";
 import Icon from "./Icon";
+import Link from "next/link";
 
 type Account = { phone: string; enrolled: boolean; keepReplies: boolean; replies: { id: string; createdAt: string; question: string; answer: string; model: string; urgency: string }[] };
 export default function PhoneSettings() {
@@ -47,18 +48,15 @@ export default function PhoneSettings() {
   return (
     <section className="ux-help">
       <div className="ux-page-heading"><h1><Icon name="phone" /> {t("phone")}</h1></div>
-      <p>{t("phoneDialHint")}</p>
-      <p>
-        <strong dir="ltr">{PHONE_SUPPORT_DISPLAY}</strong>
-      </p>
-      <a
+      <p>{t("callInternetHint")}</p>
+      <Link
         className="ux-btn"
-        href={"tel:" + PHONE_SUPPORT_NUMBER}
-        aria-label={t("phoneCall") + ": " + PHONE_SUPPORT_DISPLAY}
+        href="/call"
       >
         <Icon name="phone" />
         {t("phoneCall")}
-      </a>
+      </Link>
+      <p className="ux-muted">{t("callContact")}: <a href={"tel:" + PHONE_SUPPORT_NUMBER} dir="ltr">{PHONE_SUPPORT_DISPLAY}</a></p>
       {account && <>
         <p className="ux-muted">{t("phoneRegistered")}: {account.phone}</p>
         <form className="authForm" onSubmit={save}>
